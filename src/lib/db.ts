@@ -42,7 +42,7 @@ export interface Payment {
   status: 'pending' | 'paid' | 'expired';
   invoiceUrl?: string;
   createdAt: string;
-  method: string;
+  method?: string;
   providerData?: string | null;
 }
 
@@ -52,6 +52,7 @@ function mapUser(user: PrismaUser): User {
     ...user,
     username: user.username || undefined,
     photoUrl: user.photoUrl || undefined,
+    bybitUid: (user as any).bybitUid || undefined,
     role: user.role as 'user' | 'admin',
     isBanned: user.isBanned,
     createdAt: user.createdAt.toISOString(),
@@ -384,7 +385,7 @@ export async function createPayment(payment: Payment): Promise<void> {
       method: payment.method || "cryptobot",
       providerData: payment.providerData ?? null,
       createdAt: new Date(payment.createdAt),
-    }
+    } as any,
   });
 }
 

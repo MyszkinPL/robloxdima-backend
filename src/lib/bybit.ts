@@ -123,7 +123,9 @@ export async function syncBybitInternalDeposits(options?: { startTime?: number; 
       }
 
       const user = await prisma.user.findFirst({
-        where: { bybitUid: row.address },
+        where: {
+          bybitUid: row.address,
+        } as any,
       })
 
       if (!user) {
@@ -152,7 +154,7 @@ export async function syncBybitInternalDeposits(options?: { startTime?: number; 
             invoiceUrl: null,
             method: "bybit_uid",
             providerData: JSON.stringify(row),
-          },
+          } as any,
         })
 
         await prisma.user.update({

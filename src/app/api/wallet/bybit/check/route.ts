@@ -50,7 +50,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    if (!user.bybitUid) {
+    const bybitUid = (user as any).bybitUid as string | null | undefined
+
+    if (!bybitUid) {
       return NextResponse.json(
         { success: false, error: "Bybit UID не указан" },
         { status: 400 },

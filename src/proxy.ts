@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const forwardedProto = request.headers.get("x-forwarded-proto")
   const forwardedHost = request.headers.get("x-forwarded-host") || request.headers.get("host")
 
@@ -73,3 +73,4 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 }
+

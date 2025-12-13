@@ -57,18 +57,26 @@ export async function PATCH(
     }
 
     if (Object.prototype.hasOwnProperty.call(body, "bybitUid")) {
-      const bybitUid = body.bybitUid as string | null
+      const raw = (body.bybitUid as string | null) ?? null
+      const trimmed = raw && typeof raw === "string" ? raw.trim() : null
+      const value = trimmed && trimmed.length > 0 ? trimmed : null
+
       await prisma.user.update({
         where: { id: userId },
         data: {
-          bybitUid: bybitUid && bybitUid.trim().length > 0 ? bybitUid.trim() : null,
-        },
+          bybitUid: value,
+        } as any,
       })
-      await logAction(userId, "BYBIT_UID_UPDATE", JSON.stringify({
-        targetUserId: userId,
-        initiatorUserId: admin.id,
-        bybitUid: bybitUid && bybitUid.trim().length > 0 ? bybitUid.trim() : null,
-      }))
+
+      await logAction(
+        userId,
+        "BYBIT_UID_UPDATE",
+        JSON.stringify({
+          targetUserId: userId,
+          initiatorUserId: admin.id,
+          bybitUid: value,
+        }),
+      )
     }
 
     return NextResponse.json({ success: true })
