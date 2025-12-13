@@ -1,0 +1,21 @@
+-- AlterTable
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "referrerId" TEXT,
+ADD COLUMN IF NOT EXISTS "referralBalance" DOUBLE PRECISION NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "referralPercent" DOUBLE PRECISION NOT NULL DEFAULT 5.0,
+ADD COLUMN IF NOT EXISTS "pricingMode" TEXT NOT NULL DEFAULT 'manual',
+ADD COLUMN IF NOT EXISTS "markupType" TEXT NOT NULL DEFAULT 'percent',
+ADD COLUMN IF NOT EXISTS "markupValue" DOUBLE PRECISION NOT NULL DEFAULT 0;
+
+-- AddForeignKey
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'users_referrerId_fkey'
+  ) THEN
+    ALTER TABLE "users" ADD CONSTRAINT "users_referrerId_fkey" FOREIGN KEY ("referrerId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END$$;
