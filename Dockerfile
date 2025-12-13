@@ -24,6 +24,8 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+COPY --from=deps /app/node_modules ./node_modules
+
 COPY --from=builder /app/public ./public
 
 RUN mkdir .next
@@ -44,4 +46,4 @@ EXPOSE 3001
 ENV PORT=3001
 ENV BACKEND_BASE_URL=http://localhost:3001
 
-CMD ["/bin/sh", "-c", "node server.js & python3 -m backend.bot.main"]
+CMD ["/bin/sh", "-c", "npx prisma migrate deploy && node server.js & python3 -m backend.bot.main"]
