@@ -1,7 +1,7 @@
 FROM node:20-alpine AS base-node
+RUN apk add --no-cache libc6-compat python3 py3-pip
 
 FROM base-node AS deps
-RUN apk add --no-cache libc6-compat python3 py3-pip
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
@@ -10,6 +10,7 @@ RUN npm ci
 FROM base-node AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+RUN mkdir -p public
 COPY . .
 
 RUN npx prisma generate
@@ -31,7 +32,9 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-COPY --from=builder /app/backend ./backend
+RUN mkdir -p backend
+COPY --from=builder /app/bot ./backend/bot
+RUN touch backend/__init__.py
 
 RUN pip3 install --no-cache-dir aiogram httpx asyncpg
 
@@ -42,4 +45,3 @@ ENV PORT=3001
 ENV BACKEND_BASE_URL=http://localhost:3001
 
 CMD ["/bin/sh", "-c", "node server.js & python3 -m backend.bot.main"]
-
