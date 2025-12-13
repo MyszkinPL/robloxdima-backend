@@ -76,7 +76,11 @@ async def handle_admin_command(message: Message, api: BackendApiClient) -> None:
   if not await _is_admin(api, message.from_user.id):
     await message.answer("Доступ только для админов.")
     return
-  summary = await api.admin_get_orders_summary(message.from_user.id)
+  try:
+    summary = await api.admin_get_orders_summary(message.from_user.id)
+  except Exception:
+    await message.answer("Ошибка подключения к API. Попробуйте позже.")
+    return
   summary_text = summary.get("summary") or {}
   orders_count = summary_text.get("ordersCount", 0)
   clients_count = summary_text.get("clientsCount", 0)
@@ -99,7 +103,12 @@ async def handle_admin_menu(callback: CallbackQuery, api: BackendApiClient) -> N
   if not await _is_admin(api, callback.from_user.id):
     await callback.answer("Доступ только для админов.", show_alert=True)
     return
-  summary = await api.admin_get_orders_summary(callback.from_user.id)
+  try:
+    summary = await api.admin_get_orders_summary(callback.from_user.id)
+  except Exception:
+    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
+    await callback.answer()
+    return
   summary_text = summary.get("summary") or {}
   orders_count = summary_text.get("ordersCount", 0)
   clients_count = summary_text.get("clientsCount", 0)
@@ -123,7 +132,12 @@ async def handle_admin_menu_back(callback: CallbackQuery, api: BackendApiClient)
   if not await _is_admin(api, callback.from_user.id):
     await callback.answer("Доступ только для админов.", show_alert=True)
     return
-  summary = await api.admin_get_orders_summary(callback.from_user.id)
+  try:
+    summary = await api.admin_get_orders_summary(callback.from_user.id)
+  except Exception:
+    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
+    await callback.answer()
+    return
   summary_text = summary.get("summary") or {}
   orders_count = summary_text.get("ordersCount", 0)
   clients_count = summary_text.get("clientsCount", 0)
@@ -147,7 +161,12 @@ async def handle_admin_orders(callback: CallbackQuery, api: BackendApiClient) ->
   if not await _is_admin(api, callback.from_user.id):
     await callback.answer("Доступ только для админов.", show_alert=True)
     return
-  data = await api.admin_get_orders_summary(callback.from_user.id)
+  try:
+    data = await api.admin_get_orders_summary(callback.from_user.id)
+  except Exception:
+    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
+    await callback.answer()
+    return
   orders = data.get("orders") or []
   summary = data.get("summary") or {}
   lines = [
@@ -175,7 +194,12 @@ async def handle_admin_payments(callback: CallbackQuery, api: BackendApiClient) 
   if not await _is_admin(api, callback.from_user.id):
     await callback.answer("Доступ только для админов.", show_alert=True)
     return
-  data = await api.admin_get_payments(callback.from_user.id)
+  try:
+    data = await api.admin_get_payments(callback.from_user.id)
+  except Exception:
+    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
+    await callback.answer()
+    return
   payments = data.get("payments") or []
   if not payments:
     text = "Платежи не найдены."
@@ -198,7 +222,12 @@ async def handle_admin_users(callback: CallbackQuery, api: BackendApiClient) -> 
   if not await _is_admin(api, callback.from_user.id):
     await callback.answer("Доступ только для админов.", show_alert=True)
     return
-  data = await api.admin_get_users(callback.from_user.id)
+  try:
+    data = await api.admin_get_users(callback.from_user.id)
+  except Exception:
+    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
+    await callback.answer()
+    return
   users = data.get("users") or []
   if not users:
     text = "Пользователи не найдены."
@@ -221,7 +250,12 @@ async def handle_admin_logs(callback: CallbackQuery, api: BackendApiClient) -> N
   if not await _is_admin(api, callback.from_user.id):
     await callback.answer("Доступ только для админов.", show_alert=True)
     return
-  data = await api.admin_get_logs(callback.from_user.id)
+  try:
+    data = await api.admin_get_logs(callback.from_user.id)
+  except Exception:
+    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
+    await callback.answer()
+    return
   logs = data.get("logs") or []
   summary = data.get("summary") or {}
   lines = [
@@ -261,7 +295,12 @@ async def handle_admin_crypto_check(callback: CallbackQuery, api: BackendApiClie
   if not await _is_admin(api, callback.from_user.id):
     await callback.answer("Доступ только для админов.", show_alert=True)
     return
-  data = await api.admin_crypto_bot_check(callback.from_user.id)
+  try:
+    data = await api.admin_crypto_bot_check(callback.from_user.id)
+  except Exception:
+    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
+    await callback.answer()
+    return
   if not data.get("success"):
     text = f"Ошибка: {data.get('error')}"
   else:
@@ -289,7 +328,12 @@ async def handle_admin_crypto_rate(callback: CallbackQuery, api: BackendApiClien
   if not await _is_admin(api, callback.from_user.id):
     await callback.answer("Доступ только для админов.", show_alert=True)
     return
-  data = await api.admin_crypto_bot_rate(callback.from_user.id)
+  try:
+    data = await api.admin_crypto_bot_rate(callback.from_user.id)
+  except Exception:
+    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
+    await callback.answer()
+    return
   if not data.get("success"):
     text = f"Ошибка: {data.get('error')}"
   else:
@@ -319,7 +363,12 @@ async def handle_admin_bybit_sync(callback: CallbackQuery, api: BackendApiClient
   if not await _is_admin(api, callback.from_user.id):
     await callback.answer("Доступ только для админов.", show_alert=True)
     return
-  data = await api.admin_bybit_sync(callback.from_user.id)
+  try:
+    data = await api.admin_bybit_sync(callback.from_user.id)
+  except Exception:
+    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
+    await callback.answer()
+    return
   if not data.get("success"):
     text = f"Ошибка: {data.get('error')}"
   else:
@@ -349,7 +398,12 @@ async def handle_admin_rbx_balance(callback: CallbackQuery, api: BackendApiClien
   if not await _is_admin(api, callback.from_user.id):
     await callback.answer("Доступ только для админов.", show_alert=True)
     return
-  data = await api.admin_rbx_balance(callback.from_user.id)
+  try:
+    data = await api.admin_rbx_balance(callback.from_user.id)
+  except Exception:
+    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
+    await callback.answer()
+    return
   if not data.get("success"):
     text = f"Ошибка: {data.get('error')}"
   else:
@@ -367,7 +421,12 @@ async def handle_admin_rbx_stock(callback: CallbackQuery, api: BackendApiClient)
   if not await _is_admin(api, callback.from_user.id):
     await callback.answer("Доступ только для админов.", show_alert=True)
     return
-  data = await api.admin_rbx_stock(callback.from_user.id)
+  try:
+    data = await api.admin_rbx_stock(callback.from_user.id)
+  except Exception:
+    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
+    await callback.answer()
+    return
   if not data.get("success"):
     text = f"Ошибка: {data.get('error')}"
   else:
