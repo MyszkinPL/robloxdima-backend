@@ -1,0 +1,16 @@
+node_modules/
+.next/
+.env
+.env.*
+frontend/
+frontend.zip
+combined_sources.txt
+export_sources.py
+*.log
+npm-debug.log*
+yarn-error.log*
+dist/
+coverage/
+*.tmp
+*.swp
+
