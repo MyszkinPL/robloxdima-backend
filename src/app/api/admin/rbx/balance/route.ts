@@ -34,14 +34,21 @@ export async function GET(req: NextRequest) {
 
     type BalanceShape = {
       balance?: number
+      usd?: number
       [key: string]: unknown
     }
 
     const anyBalance = balance as BalanceShape
+    const numericBalance =
+      typeof anyBalance.usd === "number"
+        ? anyBalance.usd
+        : typeof anyBalance.balance === "number"
+          ? anyBalance.balance
+          : 0
 
     return NextResponse.json({
       success: true,
-      balance: anyBalance.balance ?? 0,
+      balance: numericBalance,
     })
   } catch (error) {
     console.error("GET /api/admin/rbx/balance error:", error)

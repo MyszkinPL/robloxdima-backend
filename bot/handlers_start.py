@@ -687,15 +687,24 @@ async def handle_admin_crypto_check(callback: CallbackQuery, api: BackendApiClie
   else:
     me = data.get("me") or {}
     currencies = data.get("currencies") or []
+    name = me.get("name") or "неизвестно"
+    default_currency = me.get("currency_type") or "не задана"
     lines = [
       "Crypto Bot подключен.",
-      f"Имя: {me.get('name')}",
-      f"Валюта по умолчанию: {me.get('currency_type')}",
+      f"Имя: {name}",
+      f"Валюта по умолчанию: {default_currency}",
       "",
       "Доступные валюты:",
     ]
-    for c in currencies:
-      lines.append(f"{c.get('ticker')} — min {c.get('min_amount')} {c.get('is_blocked') and '(заблокирована)' or ''}")
+    if not currencies:
+      lines.append("не найдены")
+    else:
+      for c in currencies:
+        ticker = c.get("ticker") or c.get("code") or "?"
+        min_amount = c.get("min_amount") or c.get("min") or "?"
+        is_blocked = bool(c.get("is_blocked"))
+        suffix = " (заблокирована)" if is_blocked else ""
+        lines.append(f"{ticker} — min {min_amount}{suffix}")
     text = "\n".join(lines)
   await callback.message.edit_text(text, reply_markup=admin_crypto_keyboard())
   await callback.answer()
@@ -789,7 +798,7 @@ async def handle_admin_rbx_balance(callback: CallbackQuery, api: BackendApiClien
     text = f"Ошибка: {data.get('error')}"
   else:
     balance = data.get("balance")
-    text = f"Текущий баланс RbxCrate: {balance} R$"
+    text = f"Текущий баланс RbxCrate: {balance} $"
   await callback.message.edit_text(text, reply_markup=admin_rbx_keyboard())
   await callback.answer()
 
@@ -813,10 +822,16 @@ async def handle_admin_rbx_stock(callback: CallbackQuery, api: BackendApiClient)
   else:
     stock = data.get("stock") or []
     lines = ["Сток по товарам:"]
-    for item in stock[:10]:
-      lines.append(
-        f"{item.get('name')} — доступно {item.get('available')} — продано {item.get('sold')}",
-      )
+    if not stock:
+      lines.append("нет данных")
+    else:
+      for item in stock[:10]:
+        name = item.get("product") or item.get("name") or "Без названия"
+        available = item.get("robuxAvailable") or item.get("available") or 0
+        sold = item.get("robuxReserved") or item.get("sold") or 0
+        lines.append(
+          f"{name} — доступно {available} — продано {sold}",
+        )
     text = "\n".join(lines)
   await callback.message.edit_text(text, reply_markup=admin_rbx_keyboard())
   await callback.answer()
