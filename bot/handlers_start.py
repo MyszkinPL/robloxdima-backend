@@ -392,6 +392,10 @@ async def _render_admin_settings(callback: CallbackQuery, api: BackendApiClient)
   crypto_bot_allowed_assets = settings.get("cryptoBotAllowedAssets") or ""
   crypto_bot_fiat_currency = settings.get("cryptoBotFiatCurrency") or ""
   telegram_bot_token = settings.get("telegramBotToken") or ""
+  bybit_api_key = settings.get("bybitApiKey") or ""
+  bybit_api_secret = settings.get("bybitApiSecret") or ""
+  bybit_testnet = settings.get("bybitTestnet")
+  bybit_store_uid = settings.get("bybitStoreUid") or ""
   lines = [
     "Настройки магазина:",
     f"Курс: {rate} ₽ за 1 Robux" if rate is not None else "Курс: не задан",
@@ -407,6 +411,11 @@ async def _render_admin_settings(callback: CallbackQuery, api: BackendApiClient)
     f"CryptoBot валюты: {crypto_bot_allowed_assets or '-'}",
     f"CryptoBot фиат: {crypto_bot_fiat_currency or '-'}",
     f"Telegram bot token: {'установлен' if telegram_bot_token else 'не задан'}",
+    "",
+    "Bybit:",
+    f"API ключ: {'установлен' if bybit_api_key and bybit_api_secret else 'не задан'}",
+    f"Bybit тестнет: {'включен' if bybit_testnet else 'выключен'}",
+    f"UID магазина: {bybit_store_uid or '-'}",
   ]
   text = "\n".join(lines)
   await callback.message.edit_text(text, reply_markup=admin_settings_keyboard())
@@ -604,6 +613,65 @@ async def handle_admin_settings_crypto_fiat(callback: CallbackQuery, state: FSMC
   await callback.answer()
 
 
+@router.callback_query(F.data == "admin:settings:bybit_keys")
+async def handle_admin_settings_bybit_keys(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    await callback.answer()
+    return
+  if not await _is_admin(api, callback.from_user.id):
+    await callback.answer("Доступ только для админов.", show_alert=True)
+    return
+  await state.set_state(AdminStates.waiting_settings_value)
+  await state.update_data(settings_field="bybitKeys")
+  await callback.message.edit_text(
+    "Отправьте два значения в двух строках:\n1-я строка — Bybit API Key\n2-я строка — Bybit API Secret",
+    reply_markup=admin_flow_cancel_keyboard(),
+  )
+  await callback.answer()
+
+
+@router.callback_query(F.data == "admin:settings:bybit_store_uid")
+async def handle_admin_settings_bybit_store_uid(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    await callback.answer()
+    return
+  if not await _is_admin(api, callback.from_user.id):
+    await callback.answer("Доступ только для админов.", show_alert=True)
+    return
+  await state.set_state(AdminStates.waiting_settings_value)
+  await state.update_data(settings_field="bybitStoreUid")
+  await callback.message.edit_text(
+    "Введите UID магазина Bybit, например 123456789",
+    reply_markup=admin_flow_cancel_keyboard(),
+  )
+  await callback.answer()
+
+
+@router.callback_query(F.data == "admin:settings:bybit_testnet_toggle")
+async def handle_admin_settings_bybit_testnet_toggle(callback: CallbackQuery, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    await callback.answer()
+    return
+  if not await _is_admin(api, callback.from_user.id):
+    await callback.answer("Доступ только для админов.", show_alert=True)
+    return
+  try:
+    data = await api.admin_get_settings(callback.from_user.id)
+  except Exception:
+    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
+    await callback.answer()
+    return
+  settings = data.get("settings") or {}
+  current = bool(settings.get("bybitTestnet"))
+  try:
+    await api.admin_update_settings(callback.from_user.id, {"bybitTestnet": not current})
+  except Exception:
+    await callback.message.edit_text("Не удалось обновить настройки. Попробуйте позже.")
+    await callback.answer()
+    return
+  await _render_admin_settings(callback, api)
+
+
 @router.message(AdminStates.waiting_settings_value)
 async def handle_admin_settings_value(message: Message, state: FSMContext, api: BackendApiClient) -> None:
   if not message.from_user:
@@ -642,6 +710,17 @@ async def handle_admin_settings_value(message: Message, state: FSMContext, api: 
     payload["cryptoBotFiatCurrency"] = text.upper()
   elif field == "rbxKey":
     payload["rbxKey"] = text
+  elif field == "bybitStoreUid":
+    payload["bybitStoreUid"] = text
+  elif field == "bybitKeys":
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) != 2:
+      await message.answer(
+        "Нужно отправить два значения в двух строках: сначала API Key, затем API Secret.",
+      )
+      return
+    payload["bybitApiKey"] = lines[0]
+    payload["bybitApiSecret"] = lines[1]
   else:
     await message.answer("Неизвестное поле настроек.")
     await state.clear()

@@ -83,6 +83,10 @@ model Settings {
   cryptoBotTestnet    Boolean @default(false)
   cryptoBotAllowedAssets String? // Comma separated assets like USDT,TON,BTC
   cryptoBotFiatCurrency String @default("RUB") // RUB, USD, EUR, etc.
+  bybitApiKey         String?
+  bybitApiSecret      String?
+  bybitTestnet        Boolean @default(false)
+  bybitStoreUid       String?
   telegramBotToken    String?
   telegramBotUsername String?
   faq                 String? // JSON string for FAQ items

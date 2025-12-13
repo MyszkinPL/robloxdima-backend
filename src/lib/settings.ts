@@ -8,6 +8,10 @@ export interface Settings {
   cryptoBotTestnet: boolean;
   cryptoBotAllowedAssets: string;
   cryptoBotFiatCurrency: string;
+  bybitApiKey: string;
+  bybitApiSecret: string;
+  bybitTestnet: boolean;
+  bybitStoreUid: string;
   telegramBotToken: string;
   telegramBotUsername: string;
   faq: string; // JSON string
@@ -22,6 +26,10 @@ const DEFAULT_SETTINGS: Settings = {
   cryptoBotTestnet: false,
   cryptoBotAllowedAssets: "",
   cryptoBotFiatCurrency: "RUB",
+  bybitApiKey: "",
+  bybitApiSecret: "",
+  bybitTestnet: false,
+  bybitStoreUid: "",
   telegramBotToken: "",
   telegramBotUsername: "",
   faq: "[]",
@@ -41,40 +49,50 @@ export async function getSettings(): Promise<Settings> {
         ...DEFAULT_SETTINGS,
         rbxKey: undefined, // Prisma handles optional/null
         cryptoBotToken: undefined,
+        bybitApiKey: undefined,
+        bybitApiSecret: undefined,
         telegramBotToken: undefined,
         telegramBotUsername: undefined,
       }
     });
     
-      return {
-        rate: newSettings.rate,
-        maintenance: newSettings.maintenance,
-        rbxKey: newSettings.rbxKey || "",
-        cryptoBotToken: newSettings.cryptoBotToken || "",
-        cryptoBotTestnet: newSettings.cryptoBotTestnet,
-        cryptoBotAllowedAssets: newSettings.cryptoBotAllowedAssets || "",
-        cryptoBotFiatCurrency: newSettings.cryptoBotFiatCurrency || "RUB",
-        telegramBotToken: newSettings.telegramBotToken || "",
-        telegramBotUsername: newSettings.telegramBotUsername || "",
-        faq: newSettings.faq || "[]",
-        supportLink: newSettings.supportLink || "",
-      };
-    }
-
     return {
-      rate: settings.rate,
-      maintenance: settings.maintenance,
-      rbxKey: settings.rbxKey || "",
-      cryptoBotToken: settings.cryptoBotToken || "",
-      cryptoBotTestnet: settings.cryptoBotTestnet,
-      cryptoBotAllowedAssets: settings.cryptoBotAllowedAssets || "",
-      cryptoBotFiatCurrency: settings.cryptoBotFiatCurrency || "RUB",
-      telegramBotToken: settings.telegramBotToken || "",
-      telegramBotUsername: settings.telegramBotUsername || "",
-      faq: settings.faq || "[]",
-      supportLink: settings.supportLink || "",
+      rate: newSettings.rate,
+      maintenance: newSettings.maintenance,
+      rbxKey: newSettings.rbxKey || "",
+      cryptoBotToken: newSettings.cryptoBotToken || "",
+      cryptoBotTestnet: newSettings.cryptoBotTestnet,
+      cryptoBotAllowedAssets: newSettings.cryptoBotAllowedAssets || "",
+      cryptoBotFiatCurrency: newSettings.cryptoBotFiatCurrency || "RUB",
+      bybitApiKey: newSettings.bybitApiKey || "",
+      bybitApiSecret: newSettings.bybitApiSecret || "",
+      bybitTestnet: newSettings.bybitTestnet,
+      bybitStoreUid: newSettings.bybitStoreUid || "",
+      telegramBotToken: newSettings.telegramBotToken || "",
+      telegramBotUsername: newSettings.telegramBotUsername || "",
+      faq: newSettings.faq || "[]",
+      supportLink: newSettings.supportLink || "",
     };
   }
+
+  return {
+    rate: settings.rate,
+    maintenance: settings.maintenance,
+    rbxKey: settings.rbxKey || "",
+    cryptoBotToken: settings.cryptoBotToken || "",
+    cryptoBotTestnet: settings.cryptoBotTestnet,
+    cryptoBotAllowedAssets: settings.cryptoBotAllowedAssets || "",
+    cryptoBotFiatCurrency: settings.cryptoBotFiatCurrency || "RUB",
+    bybitApiKey: settings.bybitApiKey || "",
+    bybitApiSecret: settings.bybitApiSecret || "",
+    bybitTestnet: settings.bybitTestnet,
+    bybitStoreUid: settings.bybitStoreUid || "",
+    telegramBotToken: settings.telegramBotToken || "",
+    telegramBotUsername: settings.telegramBotUsername || "",
+    faq: settings.faq || "[]",
+    supportLink: settings.supportLink || "",
+  };
+}
 
 export async function updateSettings(newSettings: Partial<Settings>): Promise<Settings> {
   const updated = await prisma.settings.upsert({
@@ -82,16 +100,20 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
     update: {
       rate: newSettings.rate,
       maintenance: newSettings.maintenance,
-      rbxKey: newSettings.rbxKey,
-      cryptoBotToken: newSettings.cryptoBotToken,
-      cryptoBotTestnet: newSettings.cryptoBotTestnet,
-      cryptoBotAllowedAssets: newSettings.cryptoBotAllowedAssets,
-      cryptoBotFiatCurrency: newSettings.cryptoBotFiatCurrency,
-      telegramBotToken: newSettings.telegramBotToken,
-      telegramBotUsername: newSettings.telegramBotUsername,
-      faq: newSettings.faq,
-      supportLink: newSettings.supportLink,
-    },
+        rbxKey: newSettings.rbxKey,
+        cryptoBotToken: newSettings.cryptoBotToken,
+        cryptoBotTestnet: newSettings.cryptoBotTestnet,
+        cryptoBotAllowedAssets: newSettings.cryptoBotAllowedAssets,
+        cryptoBotFiatCurrency: newSettings.cryptoBotFiatCurrency,
+        bybitApiKey: newSettings.bybitApiKey,
+        bybitApiSecret: newSettings.bybitApiSecret,
+        bybitTestnet: newSettings.bybitTestnet,
+        bybitStoreUid: newSettings.bybitStoreUid,
+        telegramBotToken: newSettings.telegramBotToken,
+        telegramBotUsername: newSettings.telegramBotUsername,
+        faq: newSettings.faq,
+        supportLink: newSettings.supportLink,
+      },
     create: {
       id: 1,
       rate: newSettings.rate ?? DEFAULT_SETTINGS.rate,
@@ -101,6 +123,10 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
       cryptoBotTestnet: newSettings.cryptoBotTestnet ?? DEFAULT_SETTINGS.cryptoBotTestnet,
       cryptoBotAllowedAssets: newSettings.cryptoBotAllowedAssets,
       cryptoBotFiatCurrency: newSettings.cryptoBotFiatCurrency ?? DEFAULT_SETTINGS.cryptoBotFiatCurrency,
+      bybitApiKey: newSettings.bybitApiKey,
+      bybitApiSecret: newSettings.bybitApiSecret,
+      bybitTestnet: newSettings.bybitTestnet ?? DEFAULT_SETTINGS.bybitTestnet,
+      bybitStoreUid: newSettings.bybitStoreUid,
       telegramBotToken: newSettings.telegramBotToken,
       telegramBotUsername: newSettings.telegramBotUsername,
       faq: newSettings.faq,
@@ -116,6 +142,10 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
     cryptoBotTestnet: updated.cryptoBotTestnet,
     cryptoBotAllowedAssets: updated.cryptoBotAllowedAssets || "",
     cryptoBotFiatCurrency: updated.cryptoBotFiatCurrency || "RUB",
+    bybitApiKey: updated.bybitApiKey || "",
+    bybitApiSecret: updated.bybitApiSecret || "",
+    bybitTestnet: updated.bybitTestnet,
+    bybitStoreUid: updated.bybitStoreUid || "",
     telegramBotToken: updated.telegramBotToken || "",
     telegramBotUsername: updated.telegramBotUsername || "",
     faq: updated.faq || "[]",

@@ -1,14 +1,12 @@
 import crypto from "crypto"
 import { prisma } from "@/lib/prisma"
 import { getUsdtToRubRate } from "@/lib/crypto-bot"
+import { getSettings } from "@/lib/settings"
 
-const BYBIT_API_KEY = process.env.BYBIT_API_KEY
-const BYBIT_API_SECRET = process.env.BYBIT_API_SECRET
-const BYBIT_TESTNET = process.env.BYBIT_TESTNET === "true"
 const BYBIT_RECV_WINDOW = "5000"
 
-function getBaseUrl() {
-  return BYBIT_TESTNET ? "https://api-testnet.bybit.com" : "https://api.bybit.com"
+function getBaseUrl(testnet: boolean) {
+  return testnet ? "https://api-testnet.bybit.com" : "https://api.bybit.com"
 }
 
 function buildQuery(params: Record<string, string | number | undefined>) {
@@ -19,17 +17,22 @@ function buildQuery(params: Record<string, string | number | undefined>) {
 }
 
 async function signedGet(path: string, params: Record<string, string | number | undefined>) {
-  if (!BYBIT_API_KEY || !BYBIT_API_SECRET) {
+  const settings = await getSettings()
+  const apiKey = settings.bybitApiKey
+  const apiSecret = settings.bybitApiSecret
+  const testnet = settings.bybitTestnet
+
+  if (!apiKey || !apiSecret) {
     throw new Error("Bybit API credentials are not configured")
   }
 
   const timestamp = Date.now().toString()
   const query = buildQuery(params)
-  const baseUrl = getBaseUrl()
-  const payload = `${timestamp}${BYBIT_API_KEY}${BYBIT_RECV_WINDOW}${query}`
+  const baseUrl = getBaseUrl(testnet)
+  const payload = `${timestamp}${apiKey}${BYBIT_RECV_WINDOW}${query}`
 
   const sign = crypto
-    .createHmac("sha256", BYBIT_API_SECRET)
+    .createHmac("sha256", apiSecret)
     .update(payload)
     .digest("hex")
 
@@ -38,7 +41,7 @@ async function signedGet(path: string, params: Record<string, string | number | 
   const res = await fetch(url, {
     method: "GET",
     headers: {
-      "X-BAPI-API-KEY": BYBIT_API_KEY,
+      "X-BAPI-API-KEY": apiKey,
       "X-BAPI-TIMESTAMP": timestamp,
       "X-BAPI-RECV-WINDOW": BYBIT_RECV_WINDOW,
       "X-BAPI-SIGN": sign,

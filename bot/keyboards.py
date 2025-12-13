@@ -193,6 +193,15 @@ def admin_settings_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="CryptoBot фиат", callback_data="admin:settings:crypto_fiat"),
       ],
       [
+        InlineKeyboardButton(text="Bybit ключи", callback_data="admin:settings:bybit_keys"),
+      ],
+      [
+        InlineKeyboardButton(text="Bybit тестнет", callback_data="admin:settings:bybit_testnet_toggle"),
+      ],
+      [
+        InlineKeyboardButton(text="Bybit UID магазина", callback_data="admin:settings:bybit_store_uid"),
+      ],
+      [
         InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"),
       ],
     ]
