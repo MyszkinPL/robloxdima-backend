@@ -50,6 +50,16 @@ def flow_cancel_keyboard() -> InlineKeyboardMarkup:
   )
 
 
+def admin_flow_cancel_keyboard() -> InlineKeyboardMarkup:
+  return InlineKeyboardMarkup(
+    inline_keyboard=[
+      [
+        InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"),
+      ],
+    ]
+  )
+
+
 def bybit_menu_keyboard() -> InlineKeyboardMarkup:
   return InlineKeyboardMarkup(
     inline_keyboard=[

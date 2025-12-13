@@ -14,6 +14,7 @@ from .keyboards import (
   admin_rbx_keyboard,
   support_keyboard,
   admin_settings_keyboard,
+  admin_flow_cancel_keyboard,
 )
 import json
 
@@ -190,10 +191,11 @@ async def handle_admin_menu(callback: CallbackQuery, api: BackendApiClient) -> N
 
 
 @router.callback_query(F.data == "admin:menu")
-async def handle_admin_menu_back(callback: CallbackQuery, api: BackendApiClient) -> None:
+async def handle_admin_menu_back(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
   if not callback.from_user:
     await callback.answer()
     return
+  await state.clear()
   if not await _is_admin(api, callback.from_user.id):
     await callback.answer("Доступ только для админов.", show_alert=True)
     return
@@ -291,7 +293,7 @@ async def handle_admin_users(callback: CallbackQuery, state: FSMContext, api: Ba
   await callback.message.edit_text(
     "Введите ID или юзернейм пользователя для поиска.\n\n"
     "Отправьте пустое сообщение, чтобы показать первых пользователей.",
-    reply_markup=admin_menu_keyboard(),
+    reply_markup=admin_flow_cancel_keyboard(),
   )
   await callback.answer()
 
@@ -448,7 +450,7 @@ async def handle_admin_settings_rate(callback: CallbackQuery, state: FSMContext,
   await state.update_data(settings_field="rate")
   await callback.message.edit_text(
     "Введите новый курс в формате числа, например 0.5",
-    reply_markup=admin_menu_keyboard(),
+    reply_markup=admin_flow_cancel_keyboard(),
   )
   await callback.answer()
 
@@ -465,7 +467,7 @@ async def handle_admin_settings_bot_username(callback: CallbackQuery, state: FSM
   await state.update_data(settings_field="telegramBotUsername")
   await callback.message.edit_text(
     "Введите username Telegram-бота без @, например my_shop_bot",
-    reply_markup=admin_menu_keyboard(),
+    reply_markup=admin_flow_cancel_keyboard(),
   )
   await callback.answer()
 
@@ -482,7 +484,7 @@ async def handle_admin_settings_rbx_key(callback: CallbackQuery, state: FSMConte
   await state.update_data(settings_field="rbxKey")
   await callback.message.edit_text(
     "Введите RBXCrate API ключ.",
-    reply_markup=admin_menu_keyboard(),
+    reply_markup=admin_flow_cancel_keyboard(),
   )
   await callback.answer()
 
@@ -499,7 +501,7 @@ async def handle_admin_settings_support_link(callback: CallbackQuery, state: FSM
   await state.update_data(settings_field="supportLink")
   await callback.message.edit_text(
     "Введите ссылку на поддержку, например https://t.me/username",
-    reply_markup=admin_menu_keyboard(),
+    reply_markup=admin_flow_cancel_keyboard(),
   )
   await callback.answer()
 
@@ -516,7 +518,7 @@ async def handle_admin_settings_telegram_token(callback: CallbackQuery, state: F
   await state.update_data(settings_field="telegramBotToken")
   await callback.message.edit_text(
     "Введите токен Telegram-бота полностью.",
-    reply_markup=admin_menu_keyboard(),
+    reply_markup=admin_flow_cancel_keyboard(),
   )
   await callback.answer()
 
@@ -533,7 +535,7 @@ async def handle_admin_settings_crypto_token(callback: CallbackQuery, state: FSM
   await state.update_data(settings_field="cryptoBotToken")
   await callback.message.edit_text(
     "Введите токен Crypto Bot.",
-    reply_markup=admin_menu_keyboard(),
+    reply_markup=admin_flow_cancel_keyboard(),
   )
   await callback.answer()
 
@@ -575,7 +577,7 @@ async def handle_admin_settings_crypto_assets(callback: CallbackQuery, state: FS
   await state.update_data(settings_field="cryptoBotAllowedAssets")
   await callback.message.edit_text(
     "Введите список тикеров через запятую, например USDT,TON",
-    reply_markup=admin_menu_keyboard(),
+    reply_markup=admin_flow_cancel_keyboard(),
   )
   await callback.answer()
 
@@ -592,7 +594,7 @@ async def handle_admin_settings_crypto_fiat(callback: CallbackQuery, state: FSMC
   await state.update_data(settings_field="cryptoBotFiatCurrency")
   await callback.message.edit_text(
     "Введите код фиатной валюты, например RUB или USD",
-    reply_markup=admin_menu_keyboard(),
+    reply_markup=admin_flow_cancel_keyboard(),
   )
   await callback.answer()
 
