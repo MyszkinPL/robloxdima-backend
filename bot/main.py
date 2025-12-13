@@ -4,6 +4,7 @@ import asyncio
 from typing import Callable, Awaitable
 
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
 from aiogram.types import Update
 
 from .config import load_config
@@ -18,7 +19,10 @@ async def main() -> None:
   pool = await create_pool(config.database_url)
   bot_token = await get_bot_token(pool)
 
-  bot = Bot(token=bot_token, parse_mode="HTML")
+  bot = Bot(
+    token=bot_token,
+    default=DefaultBotProperties(parse_mode="HTML"),
+  )
 
   api_client = BackendApiClient(
     base_url=config.backend_base_url,
@@ -50,4 +54,3 @@ async def main() -> None:
 
 if __name__ == "__main__":
   asyncio.run(main())
-
