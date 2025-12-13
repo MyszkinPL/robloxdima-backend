@@ -1,8 +1,32 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSettings } from "@/lib/settings"
-import { refundOrder, updateOrder } from "@/lib/db"
+import { getOrder, refundOrder, updateOrder } from "@/lib/db"
 import { isValidRbxcrateSign } from "@/lib/rbxcrate/utils/verify"
 import { OrderStatus, RbxCrateWebhook } from "@/lib/rbxcrate/types"
+
+async function sendTelegramNotification(
+  token: string | null | undefined,
+  chatId: string,
+  text: string,
+) {
+  if (!token) {
+    return
+  }
+  try {
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+      }),
+    })
+  } catch (error) {
+    console.error("Failed to send Telegram notification:", error)
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -33,6 +57,7 @@ export async function POST(req: NextRequest) {
 
     let refunded = false
     let refundReason: string | null = null
+    let notifyStatus: "completed" | "refunded" | null = null
 
     if (status === OrderStatus.Error || status === OrderStatus.Cancelled) {
       const refundResult = await refundOrder(orderId, {
@@ -43,8 +68,12 @@ export async function POST(req: NextRequest) {
 
       refunded = refundResult.refunded
       refundReason = refundResult.reason
+      if (refundResult.refunded) {
+        notifyStatus = "refunded"
+      }
     } else if (status === OrderStatus.Completed) {
       await updateOrder(orderId, { status: "completed" })
+      notifyStatus = "completed"
     } else if (
       status === OrderStatus.Pending ||
       status === OrderStatus.Processing ||
@@ -52,6 +81,21 @@ export async function POST(req: NextRequest) {
       status === OrderStatus.QueuedDeferred
     ) {
       await updateOrder(orderId, { status: "processing" })
+    }
+
+    if (notifyStatus && settings.telegramBotToken) {
+      const order = await getOrder(orderId)
+      if (order) {
+        const text =
+          notifyStatus === "completed"
+            ? `Ваш заказ ${order.id} выполнен. Робуксы будут начислены в ближайшее время.`
+            : `Заказ ${order.id} отменён, средства возвращены на баланс.`
+        await sendTelegramNotification(
+          settings.telegramBotToken,
+          order.userId,
+          text,
+        )
+      }
     }
 
     return NextResponse.json({

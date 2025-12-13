@@ -6,7 +6,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message, CallbackQuery
 
 from .backend_api import BackendApiClient
-from .keyboards import main_menu_keyboard, topup_confirm_keyboard, bybit_menu_keyboard
+from .keyboards import main_menu_keyboard, topup_confirm_keyboard, bybit_menu_keyboard, flow_cancel_keyboard
 
 
 router = Router()
@@ -66,6 +66,7 @@ async def handle_topup_start(callback: CallbackQuery, state: FSMContext) -> None
   await state.set_state(WalletStates.waiting_topup_amount)
   await callback.message.edit_text(
     "Введите сумму пополнения в рублях (например, 500):",
+    reply_markup=flow_cancel_keyboard(),
   )
   await callback.answer()
 
@@ -130,6 +131,7 @@ async def handle_bybit_save_start(callback: CallbackQuery, state: FSMContext) ->
   await state.set_state(WalletStates.waiting_bybit_uid)
   await callback.message.edit_text(
     "Отправьте ваш Bybit UID (или 0, чтобы очистить):",
+    reply_markup=flow_cancel_keyboard(),
   )
   await callback.answer()
 

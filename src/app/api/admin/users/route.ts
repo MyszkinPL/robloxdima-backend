@@ -29,7 +29,17 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const users = await getUsers()
+    const search = req.nextUrl.searchParams.get("search")?.trim() || ""
+
+    let users = await getUsers()
+
+    if (search) {
+      const lowered = search.toLowerCase()
+      users = users.filter((u) => {
+        const username = u.username?.toLowerCase() || ""
+        return u.id === search || username.includes(lowered)
+      })
+    }
 
     const stats = await prisma.order.groupBy({
       by: ["userId"],

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from aiogram import Router, F
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
 from .backend_api import BackendApiClient
@@ -11,7 +12,10 @@ from .keyboards import (
   admin_crypto_keyboard,
   admin_bybit_keyboard,
   admin_rbx_keyboard,
+  support_keyboard,
+  admin_settings_keyboard,
 )
+import json
 
 
 router = Router()
@@ -34,6 +38,8 @@ async def _ensure_user(message: Message, api: BackendApiClient) -> None:
 
 class AdminStates(StatesGroup):
   waiting_dummy = State()
+  waiting_user_search = State()
+  waiting_settings_value = State()
 
 
 async def _is_admin(api: BackendApiClient, telegram_id: int) -> bool:
@@ -65,6 +71,65 @@ async def handle_back(callback: CallbackQuery, api: BackendApiClient) -> None:
   await callback.message.edit_text(
     "Главное меню",
     reply_markup=main_menu_keyboard(is_admin=is_admin),
+  )
+  await callback.answer()
+
+
+@router.callback_query(F.data == "flow:cancel")
+async def handle_flow_cancel(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    await callback.answer()
+    return
+  await state.clear()
+  is_admin = await _is_admin(api, callback.from_user.id)
+  await callback.message.edit_text(
+    "Главное меню",
+    reply_markup=main_menu_keyboard(is_admin=is_admin),
+  )
+  await callback.answer("Диалог отменён")
+
+
+@router.callback_query(F.data == "menu:help")
+async def handle_help(callback: CallbackQuery, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    await callback.answer()
+    return
+  try:
+    settings = await api.get_public_settings()
+  except Exception:
+    await callback.message.edit_text(
+      "Справка недоступна. Попробуйте позже.",
+      reply_markup=main_menu_keyboard(is_admin=await _is_admin(api, callback.from_user.id)),
+    )
+    await callback.answer()
+    return
+  faq_raw = settings.get("faq") or "[]"
+  faq_items = []
+  try:
+    parsed = json.loads(faq_raw)
+    if isinstance(parsed, list):
+      faq_items = parsed
+  except Exception:
+    faq_items = []
+  lines = []
+  if faq_items:
+    lines.append("Ответы на частые вопросы:")
+    for item in faq_items:
+      question = (item.get("question") or "").strip()
+      answer = (item.get("answer") or "").strip()
+      if not question or not answer:
+        continue
+      lines.append("")
+      lines.append(f"❓ {question}")
+      lines.append(f"💬 {answer}")
+  else:
+    lines.append("FAQ пока не заполнен. Напишите в поддержку, если есть вопросы.")
+  support_link = settings.get("supportLink") or ""
+  text = "\n".join(lines)
+  await callback.message.edit_text(
+    text,
+    reply_markup=support_keyboard(support_link or None),
+    disable_web_page_preview=True,
   )
   await callback.answer()
 
@@ -215,31 +280,54 @@ async def handle_admin_payments(callback: CallbackQuery, api: BackendApiClient) 
 
 
 @router.callback_query(F.data == "admin:users")
-async def handle_admin_users(callback: CallbackQuery, api: BackendApiClient) -> None:
+async def handle_admin_users(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
   if not callback.from_user:
     await callback.answer()
     return
   if not await _is_admin(api, callback.from_user.id):
     await callback.answer("Доступ только для админов.", show_alert=True)
     return
+  await state.set_state(AdminStates.waiting_user_search)
+  await callback.message.edit_text(
+    "Введите ID или юзернейм пользователя для поиска.\n\n"
+    "Отправьте пустое сообщение, чтобы показать первых пользователей.",
+    reply_markup=admin_menu_keyboard(),
+  )
+  await callback.answer()
+
+
+@router.message(AdminStates.waiting_user_search)
+async def handle_admin_users_query(message: Message, state: FSMContext, api: BackendApiClient) -> None:
+  if not message.from_user:
+    return
+  if not await _is_admin(api, message.from_user.id):
+    await message.answer("Доступ только для админов.")
+    await state.clear()
+    return
+  query = (message.text or "").strip()
+  search = query or None
   try:
-    data = await api.admin_get_users(callback.from_user.id)
+    data = await api.admin_get_users(message.from_user.id, search=search)
   except Exception:
-    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
-    await callback.answer()
+    await message.answer("Ошибка подключения к API. Попробуйте позже.")
+    await state.clear()
     return
   users = data.get("users") or []
   if not users:
     text = "Пользователи не найдены."
   else:
-    lines = ["Первые пользователи:"]
+    if search:
+      header = f"Результаты поиска по «{query}»:"
+    else:
+      header = "Первые пользователи:"
+    lines = [header]
     for u in users[:10]:
       lines.append(
         f"{u.get('id')} — {u.get('username')} — {u.get('role')} — {u.get('status')} — баланс {u.get('balance')}₽",
       )
     text = "\n".join(lines)
-  await callback.message.edit_text(text, reply_markup=admin_menu_keyboard())
-  await callback.answer()
+  await message.answer(text, reply_markup=admin_menu_keyboard())
+  await state.clear()
 
 
 @router.callback_query(F.data == "admin:logs")
@@ -273,6 +361,292 @@ async def handle_admin_logs(callback: CallbackQuery, api: BackendApiClient) -> N
   text = "\n".join(lines)
   await callback.message.edit_text(text, reply_markup=admin_menu_keyboard())
   await callback.answer()
+
+
+async def _render_admin_settings(callback: CallbackQuery, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    return
+  if not await _is_admin(api, callback.from_user.id):
+    await callback.answer("Доступ только для админов.", show_alert=True)
+    return
+  try:
+    data = await api.admin_get_settings(callback.from_user.id)
+  except Exception:
+    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
+    await callback.answer()
+    return
+  settings = data.get("settings") or {}
+  rate = settings.get("rate")
+  maintenance = settings.get("maintenance")
+  telegram_bot_username = settings.get("telegramBotUsername") or ""
+  support_link = settings.get("supportLink") or ""
+  crypto_bot_token = settings.get("cryptoBotToken") or ""
+  crypto_bot_testnet = settings.get("cryptoBotTestnet")
+  crypto_bot_allowed_assets = settings.get("cryptoBotAllowedAssets") or ""
+  crypto_bot_fiat_currency = settings.get("cryptoBotFiatCurrency") or ""
+  telegram_bot_token = settings.get("telegramBotToken") or ""
+  lines = [
+    "Настройки магазина:",
+    f"Курс: {rate} ₽ за 1 Robux" if rate is not None else "Курс: не задан",
+    f"Техработы: {'включены' if maintenance else 'выключены'}",
+    "",
+    "Коммуникации:",
+    f"Telegram бот: @{telegram_bot_username}" if telegram_bot_username else "Telegram бот: не задан",
+    f"Ссылка поддержки: {support_link or '-'}",
+    "",
+    "Токены:",
+    f"CryptoBot токен: {'установлен' if crypto_bot_token else 'не задан'}",
+    f"CryptoBot тестнет: {'включен' if crypto_bot_testnet else 'выключен'}",
+    f"CryptoBot валюты: {crypto_bot_allowed_assets or '-'}",
+    f"CryptoBot фиат: {crypto_bot_fiat_currency or '-'}",
+    f"Telegram bot token: {'установлен' if telegram_bot_token else 'не задан'}",
+  ]
+  text = "\n".join(lines)
+  await callback.message.edit_text(text, reply_markup=admin_settings_keyboard())
+  await callback.answer()
+
+
+@router.callback_query(F.data == "admin:settings")
+async def handle_admin_settings(callback: CallbackQuery, api: BackendApiClient) -> None:
+  await _render_admin_settings(callback, api)
+
+
+@router.callback_query(F.data == "admin:settings:maintenance")
+async def handle_admin_settings_maintenance(callback: CallbackQuery, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    await callback.answer()
+    return
+  if not await _is_admin(api, callback.from_user.id):
+    await callback.answer("Доступ только для админов.", show_alert=True)
+    return
+  try:
+    data = await api.admin_get_settings(callback.from_user.id)
+  except Exception:
+    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
+    await callback.answer()
+    return
+  settings = data.get("settings") or {}
+  current = bool(settings.get("maintenance"))
+  try:
+    await api.admin_update_settings(callback.from_user.id, {"maintenance": not current})
+  except Exception:
+    await callback.message.edit_text("Не удалось обновить настройки. Попробуйте позже.")
+    await callback.answer()
+    return
+  await _render_admin_settings(callback, api)
+
+
+@router.callback_query(F.data == "admin:settings:rate")
+async def handle_admin_settings_rate(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    await callback.answer()
+    return
+  if not await _is_admin(api, callback.from_user.id):
+    await callback.answer("Доступ только для админов.", show_alert=True)
+    return
+  await state.set_state(AdminStates.waiting_settings_value)
+  await state.update_data(settings_field="rate")
+  await callback.message.edit_text(
+    "Введите новый курс в формате числа, например 0.5",
+    reply_markup=admin_menu_keyboard(),
+  )
+  await callback.answer()
+
+
+@router.callback_query(F.data == "admin:settings:bot_username")
+async def handle_admin_settings_bot_username(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    await callback.answer()
+    return
+  if not await _is_admin(api, callback.from_user.id):
+    await callback.answer("Доступ только для админов.", show_alert=True)
+    return
+  await state.set_state(AdminStates.waiting_settings_value)
+  await state.update_data(settings_field="telegramBotUsername")
+  await callback.message.edit_text(
+    "Введите username Telegram-бота без @, например my_shop_bot",
+    reply_markup=admin_menu_keyboard(),
+  )
+  await callback.answer()
+
+
+@router.callback_query(F.data == "admin:settings:rbx_key")
+async def handle_admin_settings_rbx_key(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    await callback.answer()
+    return
+  if not await _is_admin(api, callback.from_user.id):
+    await callback.answer("Доступ только для админов.", show_alert=True)
+    return
+  await state.set_state(AdminStates.waiting_settings_value)
+  await state.update_data(settings_field="rbxKey")
+  await callback.message.edit_text(
+    "Введите RBXCrate API ключ.",
+    reply_markup=admin_menu_keyboard(),
+  )
+  await callback.answer()
+
+
+@router.callback_query(F.data == "admin:settings:support_link")
+async def handle_admin_settings_support_link(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    await callback.answer()
+    return
+  if not await _is_admin(api, callback.from_user.id):
+    await callback.answer("Доступ только для админов.", show_alert=True)
+    return
+  await state.set_state(AdminStates.waiting_settings_value)
+  await state.update_data(settings_field="supportLink")
+  await callback.message.edit_text(
+    "Введите ссылку на поддержку, например https://t.me/username",
+    reply_markup=admin_menu_keyboard(),
+  )
+  await callback.answer()
+
+
+@router.callback_query(F.data == "admin:settings:telegram_token")
+async def handle_admin_settings_telegram_token(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    await callback.answer()
+    return
+  if not await _is_admin(api, callback.from_user.id):
+    await callback.answer("Доступ только для админов.", show_alert=True)
+    return
+  await state.set_state(AdminStates.waiting_settings_value)
+  await state.update_data(settings_field="telegramBotToken")
+  await callback.message.edit_text(
+    "Введите токен Telegram-бота полностью.",
+    reply_markup=admin_menu_keyboard(),
+  )
+  await callback.answer()
+
+
+@router.callback_query(F.data == "admin:settings:crypto_token")
+async def handle_admin_settings_crypto_token(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    await callback.answer()
+    return
+  if not await _is_admin(api, callback.from_user.id):
+    await callback.answer("Доступ только для админов.", show_alert=True)
+    return
+  await state.set_state(AdminStates.waiting_settings_value)
+  await state.update_data(settings_field="cryptoBotToken")
+  await callback.message.edit_text(
+    "Введите токен Crypto Bot.",
+    reply_markup=admin_menu_keyboard(),
+  )
+  await callback.answer()
+
+
+@router.callback_query(F.data == "admin:settings:crypto_testnet_toggle")
+async def handle_admin_settings_crypto_testnet_toggle(callback: CallbackQuery, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    await callback.answer()
+    return
+  if not await _is_admin(api, callback.from_user.id):
+    await callback.answer("Доступ только для админов.", show_alert=True)
+    return
+  try:
+    data = await api.admin_get_settings(callback.from_user.id)
+  except Exception:
+    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
+    await callback.answer()
+    return
+  settings = data.get("settings") or {}
+  current = bool(settings.get("cryptoBotTestnet"))
+  try:
+    await api.admin_update_settings(callback.from_user.id, {"cryptoBotTestnet": not current})
+  except Exception:
+    await callback.message.edit_text("Не удалось обновить настройки. Попробуйте позже.")
+    await callback.answer()
+    return
+  await _render_admin_settings(callback, api)
+
+
+@router.callback_query(F.data == "admin:settings:crypto_assets")
+async def handle_admin_settings_crypto_assets(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    await callback.answer()
+    return
+  if not await _is_admin(api, callback.from_user.id):
+    await callback.answer("Доступ только для админов.", show_alert=True)
+    return
+  await state.set_state(AdminStates.waiting_settings_value)
+  await state.update_data(settings_field="cryptoBotAllowedAssets")
+  await callback.message.edit_text(
+    "Введите список тикеров через запятую, например USDT,TON",
+    reply_markup=admin_menu_keyboard(),
+  )
+  await callback.answer()
+
+
+@router.callback_query(F.data == "admin:settings:crypto_fiat")
+async def handle_admin_settings_crypto_fiat(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
+  if not callback.from_user:
+    await callback.answer()
+    return
+  if not await _is_admin(api, callback.from_user.id):
+    await callback.answer("Доступ только для админов.", show_alert=True)
+    return
+  await state.set_state(AdminStates.waiting_settings_value)
+  await state.update_data(settings_field="cryptoBotFiatCurrency")
+  await callback.message.edit_text(
+    "Введите код фиатной валюты, например RUB или USD",
+    reply_markup=admin_menu_keyboard(),
+  )
+  await callback.answer()
+
+
+@router.message(AdminStates.waiting_settings_value)
+async def handle_admin_settings_value(message: Message, state: FSMContext, api: BackendApiClient) -> None:
+  if not message.from_user:
+    return
+  if not await _is_admin(api, message.from_user.id):
+    await message.answer("Доступ только для админов.")
+    await state.clear()
+    return
+  text = (message.text or "").strip()
+  data = await state.get_data()
+  field = data.get("settings_field")
+  payload: dict[str, object] = {}
+  if field == "rate":
+    normalized = text.replace(",", ".")
+    try:
+      value = float(normalized)
+    except ValueError:
+      await message.answer("Некорректный формат числа. Попробуйте ещё раз.")
+      return
+    if value <= 0:
+      await message.answer("Курс должен быть больше нуля.")
+      return
+    payload["rate"] = value
+  elif field == "telegramBotUsername":
+    username = text.lstrip("@").strip()
+    payload["telegramBotUsername"] = username
+  elif field == "supportLink":
+    payload["supportLink"] = text
+  elif field == "telegramBotToken":
+    payload["telegramBotToken"] = text
+  elif field == "cryptoBotToken":
+    payload["cryptoBotToken"] = text
+  elif field == "cryptoBotAllowedAssets":
+    payload["cryptoBotAllowedAssets"] = text
+  elif field == "cryptoBotFiatCurrency":
+    payload["cryptoBotFiatCurrency"] = text.upper()
+  elif field == "rbxKey":
+    payload["rbxKey"] = text
+  else:
+    await message.answer("Неизвестное поле настроек.")
+    await state.clear()
+    return
+  try:
+    await api.admin_update_settings(message.from_user.id, payload)
+  except Exception:
+    await message.answer("Не удалось сохранить настройки. Попробуйте позже.")
+    await state.clear()
+    return
+  await message.answer("Настройки обновлены.", reply_markup=admin_menu_keyboard())
+  await state.clear()
 
 
 @router.callback_query(F.data == "admin:crypto")

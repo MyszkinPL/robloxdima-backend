@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
 from .backend_api import BackendApiClient
-from .keyboards import main_menu_keyboard
+from .keyboards import main_menu_keyboard, flow_cancel_keyboard
 
 
 router = Router()
@@ -23,6 +23,7 @@ async def handle_order_start(callback: CallbackQuery, state: FSMContext) -> None
   await state.set_state(OrderStates.waiting_username)
   await callback.message.edit_text(
     "Введите ваш ник в Roblox:",
+    reply_markup=flow_cancel_keyboard(),
   )
   await callback.answer()
 
@@ -35,7 +36,10 @@ async def handle_order_username(message: Message, state: FSMContext) -> None:
     return
   await state.update_data(username=username)
   await state.set_state(OrderStates.waiting_amount)
-  await message.answer("Сколько робуксов хотите купить? (от 10 до 100000)")
+  await message.answer(
+    "Сколько робуксов хотите купить? (от 10 до 100000)",
+    reply_markup=flow_cancel_keyboard(),
+  )
 
 
 @router.message(OrderStates.waiting_amount)
@@ -50,7 +54,10 @@ async def handle_order_amount(message: Message, state: FSMContext) -> None:
     return
   await state.update_data(amount=amount)
   await state.set_state(OrderStates.waiting_place_id)
-  await message.answer("Отправьте ID плейса или ссылку на игру.")
+  await message.answer(
+    "Отправьте ID плейса или ссылку на игру.",
+    reply_markup=flow_cancel_keyboard(),
+  )
 
 
 @router.message(OrderStates.waiting_place_id)

@@ -18,6 +18,9 @@ def main_menu_keyboard(is_admin: bool = False) -> InlineKeyboardMarkup:
     [
       InlineKeyboardButton(text="💳 Bybit UID", callback_data="menu:bybit"),
     ],
+    [
+      InlineKeyboardButton(text="❓ Помощь", callback_data="menu:help"),
+    ],
   ]
   if is_admin:
     rows.append(
@@ -33,6 +36,16 @@ def topup_confirm_keyboard(pay_url: str) -> InlineKeyboardMarkup:
     inline_keyboard=[
       [InlineKeyboardButton(text="Оплатить через Crypto Bot", url=pay_url)],
       [InlineKeyboardButton(text="🔄 Обновить баланс", callback_data="menu:balance")],
+    ]
+  )
+
+
+def flow_cancel_keyboard() -> InlineKeyboardMarkup:
+  return InlineKeyboardMarkup(
+    inline_keyboard=[
+      [
+        InlineKeyboardButton(text="⬅️ В главное меню", callback_data="flow:cancel"),
+      ],
     ]
   )
 
@@ -72,6 +85,7 @@ def admin_menu_keyboard() -> InlineKeyboardMarkup:
       ],
       [
         InlineKeyboardButton(text="💼 Rbx", callback_data="admin:rbx"),
+        InlineKeyboardButton(text="⚙️ Настройки", callback_data="admin:settings"),
       ],
       [
         InlineKeyboardButton(text="⬅️ В главное меню", callback_data="menu:back"),
@@ -115,6 +129,58 @@ def admin_rbx_keyboard() -> InlineKeyboardMarkup:
       [
         InlineKeyboardButton(text="Баланс", callback_data="admin:rbx:balance"),
         InlineKeyboardButton(text="Сток", callback_data="admin:rbx:stock"),
+      ],
+      [
+        InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"),
+      ],
+    ]
+  )
+
+
+def support_keyboard(support_link: str | None) -> InlineKeyboardMarkup:
+  rows: list[list[InlineKeyboardButton]] = []
+  if support_link:
+    rows.append(
+      [
+        InlineKeyboardButton(text="Написать в поддержку", url=support_link),
+      ]
+    )
+  rows.append(
+    [
+      InlineKeyboardButton(text="⬅️ В главное меню", callback_data="menu:back"),
+    ]
+  )
+  return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def admin_settings_keyboard() -> InlineKeyboardMarkup:
+  return InlineKeyboardMarkup(
+    inline_keyboard=[
+      [
+        InlineKeyboardButton(text="Курс", callback_data="admin:settings:rate"),
+        InlineKeyboardButton(text="Техработы", callback_data="admin:settings:maintenance"),
+      ],
+      [
+        InlineKeyboardButton(text="TG бот", callback_data="admin:settings:bot_username"),
+        InlineKeyboardButton(text="Поддержка", callback_data="admin:settings:support_link"),
+      ],
+      [
+        InlineKeyboardButton(text="RBX ключ", callback_data="admin:settings:rbx_key"),
+      ],
+      [
+        InlineKeyboardButton(text="TG токен", callback_data="admin:settings:telegram_token"),
+      ],
+      [
+        InlineKeyboardButton(text="CryptoBot токен", callback_data="admin:settings:crypto_token"),
+      ],
+      [
+        InlineKeyboardButton(text="CryptoBot тестнет", callback_data="admin:settings:crypto_testnet_toggle"),
+      ],
+      [
+        InlineKeyboardButton(text="CryptoBot валюты", callback_data="admin:settings:crypto_assets"),
+      ],
+      [
+        InlineKeyboardButton(text="CryptoBot фиат", callback_data="admin:settings:crypto_fiat"),
       ],
       [
         InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"),

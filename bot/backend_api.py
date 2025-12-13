@@ -123,10 +123,16 @@ class BackendApiClient:
     res.raise_for_status()
     return res.json()
 
-  async def admin_get_users(self, telegram_id: int) -> Dict[str, Any]:
+  async def admin_get_users(self, telegram_id: int, search: str | None = None) -> Dict[str, Any]:
+    params: Dict[str, Any] = {}
+    if search is not None:
+      value = search.strip()
+      if value:
+        params["search"] = value
     res = await self._client.get(
       "/api/admin/users",
       headers=self._headers_for_user(telegram_id),
+      params=params or None,
     )
     res.raise_for_status()
     return res.json()
@@ -234,6 +240,30 @@ class BackendApiClient:
     }
     res = await self._client.post(
       "/api/admin/rbx/orders/vip-server",
+      json=payload,
+      headers=self._headers_for_user(telegram_id),
+    )
+    res.raise_for_status()
+    return res.json()
+
+  async def get_public_settings(self) -> Dict[str, Any]:
+    res = await self._client.get(
+      "/api/settings/public",
+    )
+    res.raise_for_status()
+    return res.json()
+
+  async def admin_get_settings(self, telegram_id: int) -> Dict[str, Any]:
+    res = await self._client.get(
+      "/api/admin/settings",
+      headers=self._headers_for_user(telegram_id),
+    )
+    res.raise_for_status()
+    return res.json()
+
+  async def admin_update_settings(self, telegram_id: int, payload: Dict[str, Any]) -> Dict[str, Any]:
+    res = await self._client.patch(
+      "/api/admin/settings",
       json=payload,
       headers=self._headers_for_user(telegram_id),
     )

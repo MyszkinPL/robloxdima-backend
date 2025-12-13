@@ -30,6 +30,14 @@ export async function POST(req: NextRequest) {
       userId = sessionUser.id
     }
 
+    const settings = await getSettings()
+    if (settings.maintenance) {
+      return NextResponse.json(
+        { error: "Магазин на техническом обслуживании" },
+        { status: 503 },
+      )
+    }
+
     const user = await getUser(userId)
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
