@@ -4,6 +4,7 @@ from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message, CallbackQuery
+import httpx
 
 from .backend_api import BackendApiClient
 from .keyboards import main_menu_keyboard, topup_confirm_keyboard, bybit_menu_keyboard, flow_cancel_keyboard
@@ -89,6 +90,22 @@ async def handle_topup_amount(message: Message, state: FSMContext, api: BackendA
 
   try:
     data = await api.create_topup(message.from_user.id, amount)
+  except httpx.HTTPStatusError as e:
+    text_error = "Не удалось создать счёт. Отправьте /start и попробуйте ещё раз."
+    try:
+      if e.response is not None and e.response.status_code == 503:
+        payload = e.response.json()
+        api_error = payload.get("error")
+        if isinstance(api_error, str) and api_error:
+          text_error = api_error
+        else:
+          text_error = "Магазин на техническом обслуживании"
+    except Exception:
+      if e.response is not None and e.response.status_code == 503:
+        text_error = "Магазин на техническом обслуживании"
+    await message.answer(text_error)
+    await state.clear()
+    return
   except Exception:
     await message.answer("Не удалось создать счёт. Отправьте /start и попробуйте ещё раз.")
     await state.clear()

