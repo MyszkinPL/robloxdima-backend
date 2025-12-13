@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     const dataCheckString = dataToCheck.join("\n")
 
     const secretKey = crypto
-      .createHash("sha256")
+      .createHmac("sha256", "WebAppData")
       .update(settings.telegramBotToken)
       .digest()
     const hmac = crypto
@@ -93,4 +93,3 @@ export async function POST(req: NextRequest) {
     )
   }
 }
-
