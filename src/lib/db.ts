@@ -48,11 +48,12 @@ export interface Payment {
 
 // Helpers to map Prisma results to our interfaces
 function mapUser(user: PrismaUser): User {
+  const extendedUser = user as PrismaUser & { bybitUid?: string | null };
   return {
     ...user,
     username: user.username || undefined,
     photoUrl: user.photoUrl || undefined,
-    bybitUid: (user as any).bybitUid || undefined,
+    bybitUid: extendedUser.bybitUid ?? undefined,
     role: user.role as 'user' | 'admin',
     isBanned: user.isBanned,
     createdAt: user.createdAt.toISOString(),
@@ -385,7 +386,7 @@ export async function createPayment(payment: Payment): Promise<void> {
       method: payment.method || "cryptobot",
       providerData: payment.providerData ?? null,
       createdAt: new Date(payment.createdAt),
-    } as any,
+    },
   });
 }
 

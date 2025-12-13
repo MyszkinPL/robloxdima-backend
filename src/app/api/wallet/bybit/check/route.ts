@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const bybitUid = (user as any).bybitUid as string | null | undefined
+    const bybitUid = user.bybitUid as string | null | undefined
 
     if (!bybitUid) {
       return NextResponse.json(

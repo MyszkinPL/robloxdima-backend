@@ -34,7 +34,7 @@ export async function PATCH(req: NextRequest) {
       where: { id: userId },
       data: {
         bybitUid: value,
-      } as any,
+      },
     })
 
     await logAction(userId, "BYBIT_UID_UPDATE", JSON.stringify({

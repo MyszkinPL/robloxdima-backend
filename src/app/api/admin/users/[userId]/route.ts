@@ -65,7 +65,7 @@ export async function PATCH(
         where: { id: userId },
         data: {
           bybitUid: value,
-        } as any,
+        },
       })
 
       await logAction(
