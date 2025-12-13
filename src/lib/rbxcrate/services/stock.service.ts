@@ -5,10 +5,10 @@ export class StockService {
   constructor(private http: HttpClient) {}
 
   async getSummary(): Promise<StockResponse> {
-    return this.http.request("/orders/stock", "GET");
+    return this.http.request("/stock", "GET");
   }
 
   async getDetailed(): Promise<DetailedStockResponse> {
-    return this.http.request("/orders/detailed-stock", "GET");
+    return this.http.request("/stock/detailed", "GET");
   }
 }
