@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import type { User as PrismaUser, Order as PrismaOrder, Payment as PrismaPayment } from '@prisma/client';
 
+export { prisma };
+
 export interface Order {
   id: string;
   userId: string; // Telegram ID
@@ -8,7 +10,7 @@ export interface Order {
   type: 'gamepass' | 'vip';
   amount: number;
   price: number;
-  status: 'pending' | 'completed' | 'failed' | 'processing';
+  status: 'pending' | 'completed' | 'failed' | 'processing' | 'cancelled';
   createdAt: string;
   rbxOrderId?: string;
   placeId: string;
@@ -24,6 +26,7 @@ export interface User {
   isBanned: boolean;
   createdAt: string;
   bybitUid?: string;
+  referrerId?: string;
 }
 
 export interface Log {
@@ -48,12 +51,13 @@ export interface Payment {
 
 // Helpers to map Prisma results to our interfaces
 function mapUser(user: PrismaUser): User {
-  const extendedUser = user as PrismaUser & { bybitUid?: string | null };
+  const extendedUser = user as any;
   return {
     ...user,
     username: user.username || undefined,
     photoUrl: user.photoUrl || undefined,
     bybitUid: extendedUser.bybitUid ?? undefined,
+    referrerId: extendedUser.referrerId ?? undefined,
     role: user.role as 'user' | 'admin',
     isBanned: user.isBanned,
     createdAt: user.createdAt.toISOString(),
@@ -61,6 +65,7 @@ function mapUser(user: PrismaUser): User {
 }
 
 function mapOrder(order: PrismaOrder): Order {
+  const ext = order as any;
   return {
     id: order.id,
     userId: order.userId,
@@ -318,12 +323,18 @@ export async function createUserOrUpdate(userData: Partial<User> & { id: string 
     role: rest.role || 'user',
     balance: rest.balance || 0,
     createdAt: rest.createdAt ? new Date(rest.createdAt) : new Date(),
+    referrerId: (rest as any).referrerId,
   };
 
   const updateData = {
     ...rest,
     createdAt: rest.createdAt ? new Date(rest.createdAt) : undefined,
   };
+
+  // Remove referrerId from updateData if it exists, because we don't want to update referrer once set
+  if ('referrerId' in updateData) {
+    delete (updateData as any).referrerId;
+  }
 
   // Remove undefined fields from updateData
   Object.keys(updateData).forEach(key => {
@@ -354,6 +365,15 @@ export async function addToUserBalance(telegramId: string, amountToAdd: number):
     where: { id: telegramId },
     data: {
       balance: { increment: amountToAdd }
+    }
+  });
+}
+
+export async function addToReferralBalance(telegramId: string, amountToAdd: number): Promise<void> {
+  await prisma.user.update({
+    where: { id: telegramId },
+    data: {
+      referralBalance: { increment: amountToAdd }
     }
   });
 }

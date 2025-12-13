@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
       username?: string
       firstName?: string
       photoUrl?: string
+      referrerId?: string
     }
 
     if (!body.id) {
@@ -32,7 +33,8 @@ export async function POST(req: NextRequest) {
       username: body.username,
       firstName: body.firstName || "User",
       photoUrl: body.photoUrl,
-    })
+      referrerId: body.referrerId,
+    } as any)
 
     return NextResponse.json({ success: true, user })
   } catch (error) {

@@ -7,25 +7,7 @@ import { RbxCrateWebhook } from "../types";
  */
 export const RBXCRATE_WEBHOOK_IPS = ["141.98.171.203"];
 
-/**
- * Sorts object keys recursively to ensure consistent JSON stringification.
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function sortObject(obj: any): any {
-  if (typeof obj !== 'object' || obj === null) {
-    return obj;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map(sortObject);
-  }
-  return Object.keys(obj)
-    .sort()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .reduce((result: any, key) => {
-      result[key] = sortObject(obj[key]);
-      return result;
-    }, {});
-}
+
 
 /**
  * Generates signature for RBXCRATE webhook verification.
@@ -44,10 +26,9 @@ export function generateSign(payload: string | Omit<RbxCrateWebhook, 'sign'>, ap
   if (typeof payload === 'string') {
     payloadString = payload;
   } else {
-    // We sort object keys to ensure consistent stringification order
-    // This is critical because {"a":1,"b":2} and {"b":2,"a":1} produce different strings but are same objects
-    const sortedPayload = sortObject(payload);
-    payloadString = JSON.stringify(sortedPayload);
+    // We do NOT sort keys because PHP json_encode (used by RBXCRATE) preserves order.
+    // Sorting keys causes signature mismatch if the sender didn't sort them.
+    payloadString = JSON.stringify(payload);
   }
 
   // Algorithm: MD5(Base64(Payload) + API_KEY)

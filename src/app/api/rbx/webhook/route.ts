@@ -21,6 +21,7 @@ async function sendTelegramNotification(
       body: JSON.stringify({
         chat_id: chatId,
         text,
+        parse_mode: "HTML",
       }),
     })
   } catch (error) {
@@ -88,8 +89,8 @@ export async function POST(req: NextRequest) {
       if (order) {
         const text =
           notifyStatus === "completed"
-            ? `Ваш заказ ${order.id} выполнен. Робуксы будут начислены в ближайшее время.`
-            : `Заказ ${order.id} отменён, средства возвращены на баланс.`
+            ? `✅ <b>Заказ выполнен!</b>\n\n🆔 <b>Заказ:</b> <code>${order.id}</code>\n📦 Робуксы будут начислены в ближайшее время.`
+            : `❌ <b>Заказ отменён</b>\n\n🆔 <b>Заказ:</b> <code>${order.id}</code>\n💰 Средства возвращены на баланс.`
         await sendTelegramNotification(
           settings.telegramBotToken,
           order.userId,

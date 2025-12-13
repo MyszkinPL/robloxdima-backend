@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from aiogram import Router, F
+from aiogram.filters import CommandStart, CommandObject
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
@@ -16,6 +17,7 @@ from .keyboards import (
   admin_settings_keyboard,
   admin_flow_cancel_keyboard,
 )
+from .stickers import STICKERS
 import json
 
 
@@ -25,7 +27,7 @@ SUPER_ADMIN_IDS = {7644426232}
 router = Router()
 
 
-async def _ensure_user(message: Message, api: BackendApiClient) -> None:
+async def _ensure_user(message: Message, api: BackendApiClient, referrer_id: str | None = None) -> None:
   tg_user = message.from_user
   if not tg_user:
     return
@@ -35,6 +37,7 @@ async def _ensure_user(message: Message, api: BackendApiClient) -> None:
       username=tg_user.username,
       first_name=tg_user.first_name or "User",
       photo_url=None,
+      referrer_id=referrer_id,
     )
   except Exception:
     return
@@ -56,14 +59,21 @@ async def _is_admin(api: BackendApiClient, telegram_id: int) -> bool:
   return me.get("role") == "admin"
 
 
-@router.message(F.text == "/start")
-async def handle_start(message: Message, api: BackendApiClient) -> None:
-  await _ensure_user(message, api)
+@router.message(CommandStart())
+async def handle_start(message: Message, command: CommandObject, api: BackendApiClient) -> None:
+  await _ensure_user(message, api, command.args)
   is_admin = False
   if message.from_user:
     is_admin = await _is_admin(api, message.from_user.id)
+  
+  if STICKERS.get("welcome") and len(STICKERS["welcome"]) > 20:
+      try:
+          await message.answer_sticker(STICKERS["welcome"])
+      except:
+          pass
+
   await message.answer(
-    "Привет! Это бот магазина робуксов.\nВыберите действие в меню ниже.",
+    "<b>Привет! Это бот магазина робуксов.</b>\n\n<blockquote>Выберите действие в меню ниже.</blockquote>",
     reply_markup=main_menu_keyboard(is_admin=is_admin),
   )
 
@@ -75,7 +85,7 @@ async def handle_back(callback: CallbackQuery, api: BackendApiClient) -> None:
     return
   is_admin = await _is_admin(api, callback.from_user.id)
   await callback.message.edit_text(
-    "Главное меню",
+    "<b>Главное меню</b>",
     reply_markup=main_menu_keyboard(is_admin=is_admin),
   )
   await callback.answer()
@@ -119,15 +129,15 @@ async def handle_help(callback: CallbackQuery, api: BackendApiClient) -> None:
     faq_items = []
   lines = []
   if faq_items:
-    lines.append("Ответы на частые вопросы:")
+    lines.append("<b>Ответы на частые вопросы:</b>")
     for item in faq_items:
       question = (item.get("question") or "").strip()
       answer = (item.get("answer") or "").strip()
       if not question or not answer:
         continue
       lines.append("")
-      lines.append(f"❓ {question}")
-      lines.append(f"💬 {answer}")
+      lines.append(f"<b>❓ {question}</b>")
+      lines.append(f"<blockquote>{answer}</blockquote>")
   else:
     lines.append("FAQ пока не заполнен. Напишите в поддержку, если есть вопросы.")
   support_link = settings.get("supportLink") or ""
@@ -157,10 +167,10 @@ async def handle_admin_command(message: Message, api: BackendApiClient) -> None:
   clients_count = summary_text.get("clientsCount", 0)
   sales_this_month = summary_text.get("salesThisMonth", 0)
   text = (
-    "Админ-панель\n\n"
-    f"Заказов всего: {orders_count}\n"
-    f"Клиентов всего: {clients_count}\n"
-    f"Заказов в этом месяце: {sales_this_month}\n\n"
+    "<b>Админ-панель</b>\n\n"
+    f"<blockquote>Заказов всего: {orders_count}</blockquote>\n"
+    f"<blockquote>Клиентов всего: {clients_count}</blockquote>\n"
+    f"<blockquote>Заказов в этом месяце: {sales_this_month}</blockquote>\n\n"
     "Выберите раздел:"
   )
   await message.answer(text, reply_markup=admin_menu_keyboard())
@@ -185,10 +195,10 @@ async def handle_admin_menu(callback: CallbackQuery, api: BackendApiClient) -> N
   clients_count = summary_text.get("clientsCount", 0)
   sales_this_month = summary_text.get("salesThisMonth", 0)
   text = (
-    "Админ-панель\n\n"
-    f"Заказов всего: {orders_count}\n"
-    f"Клиентов всего: {clients_count}\n"
-    f"Заказов в этом месяце: {sales_this_month}\n\n"
+    "<b>Админ-панель</b>\n\n"
+    f"<blockquote>Заказов всего: {orders_count}</blockquote>\n"
+    f"<blockquote>Клиентов всего: {clients_count}</blockquote>\n"
+    f"<blockquote>Заказов в этом месяце: {sales_this_month}</blockquote>\n\n"
     "Выберите раздел:"
   )
   await callback.message.edit_text(text, reply_markup=admin_menu_keyboard())
@@ -415,7 +425,7 @@ async def _render_admin_settings(callback: CallbackQuery, api: BackendApiClient)
     "Bybit:",
     f"API ключ: {'установлен' if bybit_api_key and bybit_api_secret else 'не задан'}",
     f"Bybit тестнет: {'включен' if bybit_testnet else 'выключен'}",
-    f"UID магазина: {bybit_store_uid or '-'}",
+    f"Merchant ID: {bybit_store_uid or '-'}",
   ]
   text = "\n".join(lines)
   await callback.message.edit_text(text, reply_markup=admin_settings_keyboard())
@@ -641,7 +651,7 @@ async def handle_admin_settings_bybit_store_uid(callback: CallbackQuery, state: 
   await state.set_state(AdminStates.waiting_settings_value)
   await state.update_data(settings_field="bybitStoreUid")
   await callback.message.edit_text(
-    "Введите UID магазина Bybit, например 123456789",
+    "Введите Bybit Merchant ID, например 123456789",
     reply_markup=admin_flow_cancel_keyboard(),
   )
   await callback.answer()
@@ -820,30 +830,12 @@ async def handle_admin_bybit(callback: CallbackQuery, api: BackendApiClient) -> 
   if not await _is_admin(api, callback.from_user.id):
     await callback.answer("Доступ только для админов.", show_alert=True)
     return
-  await callback.message.edit_text("Bybit депозиты:", reply_markup=admin_bybit_keyboard())
-  await callback.answer()
-
-
-@router.callback_query(F.data == "admin:bybit:sync")
-async def handle_admin_bybit_sync(callback: CallbackQuery, api: BackendApiClient) -> None:
-  if not callback.from_user:
-    await callback.answer()
-    return
-  if not await _is_admin(api, callback.from_user.id):
-    await callback.answer("Доступ только для админов.", show_alert=True)
-    return
-  try:
-    data = await api.admin_bybit_sync(callback.from_user.id)
-  except Exception:
-    await callback.message.edit_text("Ошибка подключения к API. Попробуйте позже.")
-    await callback.answer()
-    return
-  if not data.get("success"):
-    text = f"Ошибка: {data.get('error')}"
-  else:
-    processed = data.get("processed") or 0
-    text = f"Синхронизировано пополнений Bybit: {processed}"
-  await callback.message.edit_text(text, reply_markup=admin_bybit_keyboard())
+  await callback.message.edit_text(
+      "💱 <b>Bybit Pay</b>\n\n"
+      "Система работает в автоматическом режиме через Merchant API.\n"
+      "Платежи проверяются мгновенно при нажатии кнопки пользователем.",
+      reply_markup=admin_bybit_keyboard()
+  )
   await callback.answer()
 
 
@@ -900,17 +892,33 @@ async def handle_admin_rbx_stock(callback: CallbackQuery, api: BackendApiClient)
     text = f"Ошибка: {data.get('error')}"
   else:
     stock = data.get("stock") or []
-    lines = ["Сток по товарам:"]
+    lines = ["📦 <b>Сток и курс RBXCRATE:</b>\n"]
     if not stock:
-      lines.append("нет данных")
+      lines.append("Нет данных")
     else:
-      for item in stock[:10]:
-        name = item.get("product") or item.get("name") or "Без названия"
-        available = item.get("robuxAvailable") or item.get("available") or 0
-        sold = item.get("robuxReserved") or item.get("sold") or 0
-        lines.append(
-          f"{name} — доступно {available} — продано {sold}",
-        )
+      for idx, item in enumerate(stock):
+        # Пробуем получить данные по структуре DetailedStockItem
+        rate = item.get("rate")
+        amount = item.get("totalRobuxAmount")
+        
+        if rate is not None:
+            # Если есть rate, выводим в новом формате
+            lines.append(f"🔹 <b>Пакет #{idx + 1}</b>")
+            lines.append(f"💰 <b>Курс выкупа:</b> {rate}")
+            lines.append(f"📦 <b>Доступно:</b> {amount if amount is not None else 'н/д'} R$")
+            if item.get("maxInstantOrder"):
+                lines.append(f"⚡ <b>Макс. мгновенный:</b> {item.get('maxInstantOrder')} R$")
+            if item.get("accountsCount"):
+                lines.append(f"👥 <b>Аккаунтов:</b> {item.get('accountsCount')}")
+            lines.append("")
+        else:
+            # Старый формат (фоллбек)
+            name = item.get("product") or item.get("name") or "Без названия"
+            available = item.get("robuxAvailable") or item.get("available") or 0
+            sold = item.get("robuxReserved") or item.get("sold") or 0
+            lines.append(
+              f"{name} — доступно {available} — продано {sold}",
+            )
     text = "\n".join(lines)
   await callback.message.edit_text(text, reply_markup=admin_rbx_keyboard())
   await callback.answer()

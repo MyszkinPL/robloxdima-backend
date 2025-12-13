@@ -26,12 +26,14 @@ class BackendApiClient:
     username: Optional[str],
     first_name: str,
     photo_url: Optional[str],
+    referrer_id: Optional[str] = None,
   ) -> Dict[str, Any]:
     payload = {
       "id": str(telegram_id),
       "username": username,
       "firstName": first_name,
       "photoUrl": photo_url,
+      "referrerId": referrer_id,
     }
     res = await self._client.post(
       "/api/bot/user-sync",
@@ -51,7 +53,23 @@ class BackendApiClient:
     data = res.json()
     return data.get("user", {})
 
-  async def get_wallet_history(self, telegram_id: int) -> Dict[str, Any]:
+  async def get_referrals(self, telegram_id: int) -> Dict[str, Any]:
+    res = await self._client.get(
+      "/api/bot/referrals",
+      headers=self._headers_for_user(telegram_id),
+    )
+    res.raise_for_status()
+    return res.json()
+
+  async def transfer_referral_balance(self, telegram_id: int) -> Dict[str, Any]:
+    res = await self._client.post(
+      "/api/bot/referrals/transfer",
+      headers=self._headers_for_user(telegram_id),
+    )
+    res.raise_for_status()
+    return res.json()
+
+  async def get_payment_status(self, telegram_id: int, payment_id: str) -> Dict[str, Any]:
     res = await self._client.get(
       "/api/wallet/history",
       headers=self._headers_for_user(telegram_id),
@@ -63,6 +81,65 @@ class BackendApiClient:
     payload = {"amount": amount}
     res = await self._client.post(
       "/api/wallet/topup",
+      json=payload,
+      headers=self._headers_for_user(telegram_id),
+    )
+    res.raise_for_status()
+    return res.json()
+
+  async def check_bybit_payment(self, telegram_id: int, payment_id: str) -> Dict[str, Any]:
+    payload = {"paymentId": payment_id}
+    res = await self._client.post(
+      "/api/wallet/bybit/check",
+      json=payload,
+      headers=self._headers_for_user(telegram_id),
+    )
+    # 409 means already processed, which is fine to handle
+    if res.status_code == 409:
+      return {"success": False, "error": "Duplicate"}
+    res.raise_for_status()
+    return res.json()
+
+  async def get_my_orders(self, telegram_id: int) -> Dict[str, Any]:
+    res = await self._client.get(
+      "/api/orders/my",
+      headers=self._headers_for_user(telegram_id),
+    )
+    res.raise_for_status()
+    return res.json()
+
+  async def cancel_order(self, telegram_id: int, order_id: str) -> Dict[str, Any]:
+    res = await self._client.post(
+      f"/api/orders/{order_id}/cancel",
+      headers=self._headers_for_user(telegram_id),
+    )
+    res.raise_for_status()
+    return res.json()
+
+  async def create_bybit_pay_order(self, telegram_id: int, amount_rub: float) -> Dict[str, Any]:
+    payload = {"telegramId": telegram_id, "amount": amount_rub}
+    res = await self._client.post(
+      "/api/wallet/bybit/create",
+      json=payload,
+      headers=self._headers_for_user(telegram_id),
+    )
+    res.raise_for_status()
+    return res.json()
+
+  async def create_manual_payment(
+    self, 
+    telegram_id: int, 
+    amount: float, 
+    method: str = "manual",
+    provider_data: Optional[Dict[str, Any]] = None
+  ) -> Dict[str, Any]:
+    payload = {
+      "amount": amount,
+      "method": method,
+      "providerData": provider_data
+    }
+    res = await self._client.post(
+      "/api/wallet/manual",
       json=payload,
       headers=self._headers_for_user(telegram_id),
     )
@@ -85,6 +162,13 @@ class BackendApiClient:
       "/api/orders",
       json=payload,
       headers=self._headers_for_user(telegram_id),
+    )
+    res.raise_for_status()
+    return res.json()
+
+  async def get_stock_summary(self) -> Dict[str, Any]:
+    res = await self._client.get(
+      "/api/rbx/stock/summary",
     )
     res.raise_for_status()
     return res.json()
@@ -156,25 +240,6 @@ class BackendApiClient:
   async def admin_crypto_bot_rate(self, telegram_id: int) -> Dict[str, Any]:
     res = await self._client.get(
       "/api/admin/crypto-bot/rate",
-      headers=self._headers_for_user(telegram_id),
-    )
-    res.raise_for_status()
-    return res.json()
-
-  async def admin_bybit_sync(
-    self,
-    telegram_id: int,
-    start_time: Optional[int] = None,
-    end_time: Optional[int] = None,
-  ) -> Dict[str, Any]:
-    payload: Dict[str, Any] = {}
-    if start_time is not None:
-      payload["startTime"] = start_time
-    if end_time is not None:
-      payload["endTime"] = end_time
-    res = await self._client.post(
-      "/api/admin/bybit/sync",
-      json=payload,
       headers=self._headers_for_user(telegram_id),
     )
     res.raise_for_status()

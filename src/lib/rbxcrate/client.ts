@@ -6,7 +6,7 @@ import { StockService } from "./services/stock.service";
 export interface RbxCrateClientOptions {
   /**
    * Base URL for the API.
-   * Default: https://rbxcrate.com/api
+   * Default: https://rbxcrate.com/api/v1
    */
   baseUrl?: string;
   /**
@@ -24,7 +24,7 @@ export class RbxCrateClient {
   public balance: BalanceService;
 
   constructor(apiKey: string, options?: RbxCrateClientOptions) {
-    const baseUrl = options?.baseUrl || "https://rbxcrate.com/api";
+    const baseUrl = options?.baseUrl || "https://rbxcrate.com/api/v1";
     const timeout = options?.timeout || 10000;
 
     this.http = new HttpClient(baseUrl, apiKey, timeout);

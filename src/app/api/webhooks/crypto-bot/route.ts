@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 import { getSettings } from "@/lib/settings"
-import { getPayment, addToUserBalance } from "@/lib/db"
+import { getPayment, addToUserBalance, addToReferralBalance } from "@/lib/db"
 import { prisma } from "@/lib/prisma"
 
 async function sendTelegramNotification(
@@ -21,6 +21,7 @@ async function sendTelegramNotification(
       body: JSON.stringify({
         chat_id: chatId,
         text,
+        parse_mode: "HTML",
       }),
     })
   } catch (error) {
@@ -75,9 +76,7 @@ export async function POST(req: NextRequest) {
         const payment = await getPayment(paymentId)
         if (payment) {
           await addToUserBalance(payment.userId, payment.amount)
-          const text = `Ваш баланс пополнен на ${payment.amount.toFixed(
-            2,
-          )} ₽.`
+          const text = `✅ <b>Баланс пополнен!</b>\n\n💰 Сумма: <code>${payment.amount.toFixed(2)} ₽</code>`
           await sendTelegramNotification(
             settings.telegramBotToken,
             payment.userId,
@@ -86,6 +85,20 @@ export async function POST(req: NextRequest) {
           console.log(
             `Success deposit: ${payment.amount} to user ${payment.userId}`,
           )
+          
+          // Referral Bonus
+          const user = await prisma.user.findUnique({ where: { id: payment.userId } })
+          if (user && user.referrerId) {
+             const bonus = payment.amount * (settings.referralPercent / 100)
+             if (bonus > 0) {
+                await addToReferralBalance(user.referrerId, bonus)
+                await sendTelegramNotification(
+                  settings.telegramBotToken,
+                  user.referrerId,
+                  `💰 <b>Реферальный бонус!</b>\n\nВам начислено <code>${bonus.toFixed(2)} ₽</code> за пополнение реферала ${user.firstName}`
+                )
+              }
+          }
         }
       } else {
         console.log("Invoice already processed or not found")

@@ -16,6 +16,10 @@ export interface Settings {
   telegramBotUsername: string;
   faq: string; // JSON string
   supportLink: string;
+  referralPercent: number;
+  pricingMode: string;
+  markupType: string;
+  markupValue: number;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -34,6 +38,10 @@ const DEFAULT_SETTINGS: Settings = {
   telegramBotUsername: "",
   faq: "[]",
   supportLink: "",
+  referralPercent: 5.0,
+  pricingMode: "manual",
+  markupType: "percent",
+  markupValue: 0,
 };
 
 export async function getSettings(): Promise<Settings> {
@@ -72,6 +80,10 @@ export async function getSettings(): Promise<Settings> {
       telegramBotUsername: newSettings.telegramBotUsername || "",
       faq: newSettings.faq || "[]",
       supportLink: newSettings.supportLink || "",
+      referralPercent: newSettings.referralPercent,
+      pricingMode: newSettings.pricingMode,
+      markupType: newSettings.markupType,
+      markupValue: newSettings.markupValue,
     };
   }
 
@@ -91,6 +103,10 @@ export async function getSettings(): Promise<Settings> {
     telegramBotUsername: settings.telegramBotUsername || "",
     faq: settings.faq || "[]",
     supportLink: settings.supportLink || "",
+    referralPercent: settings.referralPercent,
+    pricingMode: settings.pricingMode,
+    markupType: settings.markupType,
+    markupValue: settings.markupValue,
   };
 }
 
@@ -100,20 +116,24 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
     update: {
       rate: newSettings.rate,
       maintenance: newSettings.maintenance,
-        rbxKey: newSettings.rbxKey,
-        cryptoBotToken: newSettings.cryptoBotToken,
-        cryptoBotTestnet: newSettings.cryptoBotTestnet,
-        cryptoBotAllowedAssets: newSettings.cryptoBotAllowedAssets,
-        cryptoBotFiatCurrency: newSettings.cryptoBotFiatCurrency,
-        bybitApiKey: newSettings.bybitApiKey,
-        bybitApiSecret: newSettings.bybitApiSecret,
-        bybitTestnet: newSettings.bybitTestnet,
-        bybitStoreUid: newSettings.bybitStoreUid,
-        telegramBotToken: newSettings.telegramBotToken,
-        telegramBotUsername: newSettings.telegramBotUsername,
-        faq: newSettings.faq,
-        supportLink: newSettings.supportLink,
-      },
+      rbxKey: newSettings.rbxKey || null,
+      cryptoBotToken: newSettings.cryptoBotToken || null,
+      cryptoBotTestnet: newSettings.cryptoBotTestnet,
+      cryptoBotAllowedAssets: newSettings.cryptoBotAllowedAssets || null,
+      cryptoBotFiatCurrency: newSettings.cryptoBotFiatCurrency || "RUB",
+      bybitApiKey: newSettings.bybitApiKey || null,
+      bybitApiSecret: newSettings.bybitApiSecret || null,
+      bybitTestnet: newSettings.bybitTestnet,
+      bybitStoreUid: newSettings.bybitStoreUid || null,
+      telegramBotToken: newSettings.telegramBotToken || null,
+      telegramBotUsername: newSettings.telegramBotUsername || null,
+      faq: newSettings.faq,
+      supportLink: newSettings.supportLink,
+      referralPercent: newSettings.referralPercent,
+      pricingMode: newSettings.pricingMode,
+      markupType: newSettings.markupType,
+      markupValue: newSettings.markupValue,
+    },
     create: {
       id: 1,
       rate: newSettings.rate ?? DEFAULT_SETTINGS.rate,
@@ -129,8 +149,12 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
       bybitStoreUid: newSettings.bybitStoreUid,
       telegramBotToken: newSettings.telegramBotToken,
       telegramBotUsername: newSettings.telegramBotUsername,
-      faq: newSettings.faq,
-      supportLink: newSettings.supportLink,
+      faq: newSettings.faq ?? DEFAULT_SETTINGS.faq,
+      supportLink: newSettings.supportLink ?? DEFAULT_SETTINGS.supportLink,
+      referralPercent: newSettings.referralPercent ?? DEFAULT_SETTINGS.referralPercent,
+      pricingMode: newSettings.pricingMode ?? DEFAULT_SETTINGS.pricingMode,
+      markupType: newSettings.markupType ?? DEFAULT_SETTINGS.markupType,
+      markupValue: newSettings.markupValue ?? DEFAULT_SETTINGS.markupValue,
     }
   });
 
@@ -150,5 +174,9 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
     telegramBotUsername: updated.telegramBotUsername || "",
     faq: updated.faq || "[]",
     supportLink: updated.supportLink || "",
+    referralPercent: updated.referralPercent,
+    pricingMode: updated.pricingMode,
+    markupType: updated.markupType,
+    markupValue: updated.markupValue,
   };
 }

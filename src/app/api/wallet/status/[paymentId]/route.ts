@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/session"
-import { getPayment, updatePaymentStatus, addToUserBalance } from "@/lib/db"
+import { getPayment, updatePaymentStatus, addToUserBalance, addToReferralBalance, getUser } from "@/lib/db"
 import { checkInvoice } from "@/lib/crypto-bot"
+import { getSettings } from "@/lib/settings"
+import { prisma } from "@/lib/prisma"
 
 export async function GET(
   req: NextRequest,
@@ -10,7 +12,22 @@ export async function GET(
   try {
     const { paymentId } = await context.params
 
-    const user = await getSessionUser()
+    // Try session auth
+    let user = await getSessionUser()
+    
+    // Try bot auth if no session
+    if (!user) {
+        const botToken = req.headers.get("x-bot-token")
+        const telegramId = req.headers.get("x-telegram-id")
+        
+        if (botToken && telegramId) {
+             const settings = await getSettings()
+             if (settings.telegramBotToken === botToken) {
+                user = (await getUser(telegramId)) || null
+            }
+        }
+    }
+
     if (!user) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
@@ -48,6 +65,15 @@ export async function GET(
     if (status === "paid") {
       await updatePaymentStatus(paymentId, "paid")
       await addToUserBalance(payment.userId, payment.amount)
+      
+      // Referral Bonus
+      if (user.referrerId) {
+         const settings = await getSettings()
+         const bonus = payment.amount * (settings.referralPercent / 100)
+         if (bonus > 0) {
+           await addToReferralBalance(user.referrerId, bonus)
+         }
+      }
 
       return NextResponse.json({
         success: true,

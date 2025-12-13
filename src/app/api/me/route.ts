@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/session"
 import { getUser } from "@/lib/db"
+import { prisma } from "@/lib/prisma"
 import { getSettings } from "@/lib/settings"
 
 export async function GET(req: NextRequest) {
@@ -29,7 +30,33 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    return NextResponse.json({ user: dbUser })
+    // Calculate stats
+    const totalOrders = await prisma.order.count({
+      where: {
+        userId: userId!,
+        status: { not: "cancelled" }
+      }
+    })
+
+    const totalSpentResult = await prisma.order.aggregate({
+      where: {
+        userId: userId!,
+        status: { not: "cancelled" }
+      },
+      _sum: {
+        price: true
+      }
+    })
+    
+    const totalSpent = totalSpentResult._sum.price || 0
+
+    return NextResponse.json({ 
+      user: {
+        ...dbUser,
+        totalOrders,
+        totalSpent
+      } 
+    })
   } catch (error) {
     console.error("GET /api/me error:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })

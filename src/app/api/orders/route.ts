@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma"
 import { getAuthenticatedRbxClient } from "@/lib/api-client"
 import { getCachedStock } from "@/lib/stock-cache"
 import { rateLimit } from "@/lib/ratelimit"
+import { getCurrentUserRate } from "@/lib/pricing"
 
 const MIN_ROBUX = 10
 const MAX_ROBUX = 100000
@@ -95,7 +96,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const rawPrice = amount * settings.rate
+    const currentRate = await getCurrentUserRate()
+    const rawPrice = amount * currentRate
     const price = Math.ceil(rawPrice * 100) / 100
 
     const currentStock = await getCachedStock()

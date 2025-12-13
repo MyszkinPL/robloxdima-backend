@@ -1,5 +1,5 @@
 import crypto from "crypto"
-import { prisma } from "@/lib/prisma"
+import { prisma, logAction } from "@/lib/db"
 import { getUsdtToRubRate } from "@/lib/crypto-bot"
 import { getSettings } from "@/lib/settings"
 
@@ -96,90 +96,63 @@ async function fetchInternalDeposits(params: { startTime?: number; endTime?: num
   return { rows, nextPageCursor }
 }
 
-export async function syncBybitInternalDeposits(options?: { startTime?: number; endTime?: number }) {
-  const startTime = options?.startTime ?? Date.now() - 24 * 60 * 60 * 1000
-  const endTime = options?.endTime ?? Date.now()
+export async function checkPaymentByAmount(amountUsdt: number, startTime: number): Promise<string | null> {
+  // Fetch deposits from startTime
+  // We scan a bit before startTime just in case of clock drift, but startTime passed should handle it
+  // Bybit API startTime is ms
+  
   let cursor: string | undefined
-  let processed = 0
+  let foundTxId: string | null = null
 
-  let usdtToRubRate: number | null = null
-  try {
-    usdtToRubRate = await getUsdtToRubRate()
-  } catch (error) {
-    console.error("Failed to load USDT→RUB rate for Bybit sync:", error)
-  }
+  // Limit to 5 pages scan (recent deposits)
+  for (let i = 0; i < 5; i++) {
+    const { rows, nextPageCursor } = await fetchInternalDeposits({ startTime, cursor })
+    
+    // Look for exact amount match
+    const match = rows.find(r => {
+        // Only consider successful deposits
+        // Status: 1=Processing, 2=Success (usually) - check API docs or assume 1/2 are positive
+        // For internal transfer, usually instant.
+        if (Number(r.status) !== 2 && Number(r.status) !== 1) return false
 
-  while (true) {
-    const { rows, nextPageCursor } = await fetchInternalDeposits({
-      startTime,
-      endTime,
-      cursor,
+        const amt = parseFloat(r.amount)
+        return Math.abs(amt - amountUsdt) < 0.0001
     })
 
-    if (!rows.length) {
-      break
+    if (match) {
+        foundTxId = match.txID || match.id
+        break
     }
 
-    for (const row of rows) {
-      if (row.status !== 2) {
-        continue
-      }
-
-      const user = await prisma.user.findFirst({
-        where: {
-          bybitUid: row.address,
-        },
-      })
-
-      if (!user) {
-        continue
-      }
-
-      const paymentId = row.txID
-      const rawAmount = Number(row.amount)
-      if (!Number.isFinite(rawAmount) || rawAmount <= 0) {
-        continue
-      }
-
-      let creditedAmountRub = rawAmount
-      if (row.coin === "USDT" && usdtToRubRate && Number.isFinite(usdtToRubRate) && usdtToRubRate > 0) {
-        creditedAmountRub = Math.ceil(rawAmount * usdtToRubRate * 100) / 100
-      }
-
-      try {
-        await prisma.payment.create({
-          data: {
-            id: paymentId,
-            userId: user.id,
-            amount: creditedAmountRub,
-            currency: "RUB",
-            status: "paid",
-            invoiceUrl: null,
-            method: "bybit_uid",
-            providerData: JSON.stringify(row),
-          },
-        })
-
-        await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            balance: {
-              increment: creditedAmountRub,
-            },
-          },
-        })
-
-        processed += 1
-      } catch {
-      }
-    }
-
-    if (!nextPageCursor) {
-      break
-    }
-
+    if (!nextPageCursor) break
     cursor = nextPageCursor
   }
 
-  return { processed }
+  return foundTxId
+}
+
+export async function syncBybitInternalDeposits(params: { startTime?: number; endTime?: number }) {
+  let cursor: string | undefined
+  let processedCount = 0
+  
+  // Default to last 24h if no time provided
+  const start = params.startTime ?? Date.now() - 24 * 60 * 60 * 1000
+  const end = params.endTime
+
+  while (true) {
+    const { rows, nextPageCursor } = await fetchInternalDeposits({ 
+        startTime: start, 
+        endTime: end, 
+        cursor 
+    })
+
+    if (rows.length === 0) break
+
+    processedCount += rows.length
+
+    if (!nextPageCursor) break
+    cursor = nextPageCursor
+  }
+
+  return { processedCount }
 }

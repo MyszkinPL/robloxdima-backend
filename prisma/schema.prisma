@@ -16,10 +16,14 @@ model User {
   isBanned  Boolean  @default(false)
   createdAt DateTime @default(now())
   bybitUid  String?
+  referrerId String?
+  referralBalance Float @default(0)
   
   orders    Order[]
   payments  Payment[]
   logs      Log[]
+  referrals User[]    @relation("UserReferrals")
+  referrer  User?     @relation("UserReferrals", fields: [referrerId], references: [id])
 
   @@map("users")
 }
@@ -91,6 +95,11 @@ model Settings {
   telegramBotUsername String?
   faq                 String? // JSON string for FAQ items
   supportLink         String?
+  referralPercent     Float   @default(5.0)
+
+  pricingMode         String  @default("manual") // manual, auto
+  markupType          String  @default("percent") // percent, fixed
+  markupValue         Float   @default(0)
 
   @@map("settings")
 }
