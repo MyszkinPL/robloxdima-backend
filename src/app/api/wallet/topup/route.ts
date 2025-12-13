@@ -4,6 +4,7 @@ import { createPayment, Payment, getUser } from "@/lib/db"
 import { getSessionUser } from "@/lib/session"
 import { rateLimit } from "@/lib/ratelimit"
 import { getSettings } from "@/lib/settings"
+import { prisma } from "@/lib/prisma"
 
 export async function POST(req: NextRequest) {
   try {
@@ -47,6 +48,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Ваш аккаунт заблокирован. Обратитесь в поддержку." },
         { status: 403 },
+      )
+    }
+
+    const existingPayment = await prisma.payment.findFirst({
+      where: {
+        userId,
+        status: "pending",
+        method: "cryptobot",
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    })
+
+    if (existingPayment) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "У вас уже есть ожидающий счет. Сначала оплатите или отмените его.",
+          existingPayment: {
+            id: existingPayment.id,
+            amount: existingPayment.amount,
+            currency: existingPayment.currency,
+            status: existingPayment.status,
+            invoiceUrl: existingPayment.invoiceUrl,
+            createdAt: existingPayment.createdAt.toISOString(),
+          },
+        },
+        { status: 409 },
       )
     }
 
