@@ -40,24 +40,36 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Data is outdated" }, { status: 403 })
   }
 
+  const id = searchParams.get("id")
+  const firstName = searchParams.get("first_name")
+  if (!id || !firstName) {
+    return NextResponse.json({ error: "Missing user data" }, { status: 400 })
+  }
+
   const user = await createUserOrUpdate({
-    id: searchParams.get("id")!,
+    id,
     username: searchParams.get("username") || undefined,
-    firstName: searchParams.get("first_name")!,
+    firstName,
     photoUrl: searchParams.get("photo_url") || undefined,
   })
 
   await setSessionUser(user.id)
 
-  const forwardedHost =
-    req.headers.get("x-forwarded-host") || req.headers.get("host") || ""
-  const forwardedProto = req.headers.get("x-forwarded-proto") || "https"
+  const envRedirect = process.env.FRONTEND_URL || process.env.NEXT_PUBLIC_FRONTEND_URL
+  if (envRedirect) {
+    return NextResponse.redirect(new URL(envRedirect))
+  }
 
-  const frontendBase =
-    process.env.FRONTEND_URL ||
-    (forwardedHost ? `${forwardedProto}://${forwardedHost}` : "http://localhost:3000")
-
-  const redirectUrl = new URL("/", frontendBase)
+  const redirectUrl = new URL("/", req.url)
+  const forwardedHost = req.headers.get("x-forwarded-host")
+  if (forwardedHost) {
+    redirectUrl.host = forwardedHost
+  }
+  const forwardedProto = req.headers.get("x-forwarded-proto")
+  if (forwardedProto) {
+    redirectUrl.protocol = forwardedProto.replace(":", "")
+  }
 
   return NextResponse.redirect(redirectUrl)
 }
+
