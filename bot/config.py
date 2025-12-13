@@ -11,7 +11,9 @@ class BotConfig:
 
 
 def load_config() -> BotConfig:
-  backend_base_url = os.getenv("BACKEND_BASE_URL") or "http://localhost:3001"
+  backend_base_url = os.getenv("BOT_BACKEND_BASE_URL")
+  if not backend_base_url:
+    backend_base_url = "http://127.0.0.1:3001"
   backend_base_url = backend_base_url.rstrip("/")
 
   database_url = os.getenv("DATABASE_URL")
@@ -22,4 +24,3 @@ def load_config() -> BotConfig:
     backend_base_url=backend_base_url,
     database_url=database_url,
   )
-
