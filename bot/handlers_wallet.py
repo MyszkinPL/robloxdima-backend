@@ -22,7 +22,11 @@ async def handle_balance(callback: CallbackQuery, api: BackendApiClient) -> None
   if not callback.from_user:
     await callback.answer()
     return
-  me = await api.get_me(callback.from_user.id)
+  try:
+    me = await api.get_me(callback.from_user.id)
+  except Exception:
+    await callback.answer("Ошибка авторизации. Отправьте /start и попробуйте снова.", show_alert=True)
+    return
   balance = me.get("balance", 0)
   is_admin = me.get("role") == "admin"
   text = f"Ваш текущий баланс: {balance} ₽"
@@ -35,9 +39,13 @@ async def handle_history(callback: CallbackQuery, api: BackendApiClient) -> None
   if not callback.from_user:
     await callback.answer()
     return
-  me = await api.get_me(callback.from_user.id)
+  try:
+    me = await api.get_me(callback.from_user.id)
+    history = await api.get_wallet_history(callback.from_user.id)
+  except Exception:
+    await callback.answer("Ошибка авторизации. Отправьте /start и попробуйте снова.", show_alert=True)
+    return
   is_admin = me.get("role") == "admin"
-  history = await api.get_wallet_history(callback.from_user.id)
   payments = history.get("payments") or []
   if not payments:
     text = "История пополнений пуста."
@@ -78,7 +86,12 @@ async def handle_topup_amount(message: Message, state: FSMContext, api: BackendA
     await message.answer("Сумма должна быть больше нуля. Попробуйте ещё раз.")
     return
 
-  data = await api.create_topup(message.from_user.id, amount)
+  try:
+    data = await api.create_topup(message.from_user.id, amount)
+  except Exception:
+    await message.answer("Не удалось создать счёт. Отправьте /start и попробуйте ещё раз.")
+    await state.clear()
+    return
   payment_url = data.get("paymentUrl")
   if not payment_url:
     await message.answer("Не удалось создать счёт. Попробуйте позже.")
@@ -99,7 +112,11 @@ async def handle_bybit_menu(callback: CallbackQuery, api: BackendApiClient, stat
   if not callback.from_user:
     await callback.answer()
     return
-  me = await api.get_me(callback.from_user.id)
+  try:
+    me = await api.get_me(callback.from_user.id)
+  except Exception:
+    await callback.answer("Ошибка авторизации. Отправьте /start и попробуйте снова.", show_alert=True)
+    return
   current_uid = me.get("bybitUid") or "не указан"
   text = f"Bybit UID: {current_uid}\n\n" \
          "Вы можете сохранить свой UID или проверить последние пополнения."
@@ -124,7 +141,12 @@ async def handle_bybit_uid(message: Message, state: FSMContext, api: BackendApiC
   raw = (message.text or "").strip()
   value = None if raw == "0" or raw == "" else raw
 
-  data = await api.set_bybit_uid(message.from_user.id, value)
+  try:
+    data = await api.set_bybit_uid(message.from_user.id, value)
+  except Exception:
+    await message.answer("Ошибка при сохранении Bybit UID. Отправьте /start и попробуйте ещё раз.")
+    await state.clear()
+    return
   if data.get("success"):
     await message.answer("Bybit UID сохранён.")
   else:
