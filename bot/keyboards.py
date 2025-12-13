@@ -155,6 +155,79 @@ def admin_flow_cancel_keyboard() -> InlineKeyboardMarkup:
   )
 
 
+def admin_bybit_keyboard() -> InlineKeyboardMarkup:
+  return InlineKeyboardMarkup(
+    inline_keyboard=[
+      [
+        InlineKeyboardButton(text="Проверить баланс", callback_data="admin:bybit:balance"),
+      ],
+      [
+        InlineKeyboardButton(text="Синхронизация депозитов", callback_data="admin:bybit:sync"),
+      ],
+      [
+        InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"),
+      ],
+    ]
+  )
+
+
+def admin_rbx_keyboard() -> InlineKeyboardMarkup:
+  return InlineKeyboardMarkup(
+    inline_keyboard=[
+      [
+        InlineKeyboardButton(text="Баланс аккаунта", callback_data="admin:rbx:balance"),
+      ],
+      [
+        InlineKeyboardButton(text="Наличие стока", callback_data="admin:rbx:stock"),
+      ],
+      [
+        InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"),
+      ],
+    ]
+  )
+
+
+def admin_settings_keyboard() -> InlineKeyboardMarkup:
+  return InlineKeyboardMarkup(
+    inline_keyboard=[
+      [
+        InlineKeyboardButton(text="🔧 Техработы (вкл/выкл)", callback_data="admin:settings:maintenance"),
+      ],
+      [
+        InlineKeyboardButton(text="💰 Изменить курс", callback_data="admin:settings:rate"),
+      ],
+      [
+        InlineKeyboardButton(text="🤖 Bot Username", callback_data="admin:settings:bot_username"),
+      ],
+      [
+        InlineKeyboardButton(text="🔑 RbxCrate Key", callback_data="admin:settings:rbx_key"),
+      ],
+      [
+        InlineKeyboardButton(text="🆘 Ссылка поддержки", callback_data="admin:settings:support_link"),
+      ],
+      [
+        InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"),
+      ],
+    ]
+  )
+
+
+def support_keyboard(support_link: str | None) -> InlineKeyboardMarkup:
+  rows = []
+  if support_link:
+    rows.append(
+      [
+        InlineKeyboardButton(text="🆘 Написать в поддержку", url=support_link),
+      ]
+    )
+  rows.append(
+    [
+      InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:back"),
+    ]
+  )
+  return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
 def admin_menu_keyboard() -> InlineKeyboardMarkup:
   return InlineKeyboardMarkup(
     inline_keyboard=[
