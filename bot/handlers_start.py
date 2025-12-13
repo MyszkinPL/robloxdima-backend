@@ -25,7 +25,7 @@ async def _ensure_user(message: Message, api: BackendApiClient) -> None:
     telegram_id=tg_user.id,
     username=tg_user.username,
     first_name=tg_user.first_name or "User",
-    photo_url=tg_user.photo_url,
+    photo_url=None,
   )
 
 
