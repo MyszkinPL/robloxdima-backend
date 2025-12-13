@@ -21,12 +21,15 @@ async def _ensure_user(message: Message, api: BackendApiClient) -> None:
   tg_user = message.from_user
   if not tg_user:
     return
-  await api.sync_user(
-    telegram_id=tg_user.id,
-    username=tg_user.username,
-    first_name=tg_user.first_name or "User",
-    photo_url=None,
-  )
+  try:
+    await api.sync_user(
+      telegram_id=tg_user.id,
+      username=tg_user.username,
+      first_name=tg_user.first_name or "User",
+      photo_url=None,
+    )
+  except Exception:
+    return
 
 
 class AdminStates(StatesGroup):
@@ -34,7 +37,10 @@ class AdminStates(StatesGroup):
 
 
 async def _is_admin(api: BackendApiClient, telegram_id: int) -> bool:
-  me = await api.get_me(telegram_id)
+  try:
+    me = await api.get_me(telegram_id)
+  except Exception:
+    return False
   return me.get("role") == "admin"
 
 
