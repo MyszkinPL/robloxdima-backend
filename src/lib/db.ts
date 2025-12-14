@@ -344,7 +344,6 @@ export async function createUserOrUpdate(userData: Partial<User> & { id: string 
     createdAt: rest.createdAt ? new Date(rest.createdAt) : new Date(),
     referrer: rest.referrerId ? { connect: { id: rest.referrerId } } : undefined,
     referralBalance: rest.referralBalance || 0,
-    bybitUid: rest.bybitUid,
   };
 
   const updateData: Prisma.UserUpdateInput = {
@@ -355,7 +354,6 @@ export async function createUserOrUpdate(userData: Partial<User> & { id: string 
     balance: rest.balance,
     createdAt: rest.createdAt ? new Date(rest.createdAt) : undefined,
     referralBalance: rest.referralBalance,
-    bybitUid: rest.bybitUid,
   };
 
   // Remove undefined fields from updateData
