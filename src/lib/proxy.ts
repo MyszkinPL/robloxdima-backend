@@ -5,6 +5,7 @@ export function proxy(request: NextRequest) {
   const forwardedProto = request.headers.get("x-forwarded-proto")
   const forwardedHost = request.headers.get("x-forwarded-host") || request.headers.get("host")
 
+  // Force HTTPS in production
   if (
     process.env.NODE_ENV === "production" &&
     forwardedProto === "http" &&
@@ -17,8 +18,7 @@ export function proxy(request: NextRequest) {
   }
 
   const origin = request.headers.get("origin")
-  const isApiRequest = request.nextUrl.pathname.startsWith("/api")
-
+  
   const allowedOrigins = [
     "https://rbtrade.org",
     "https://www.rbtrade.org",
@@ -26,39 +26,26 @@ export function proxy(request: NextRequest) {
     "http://localhost:5173",
   ]
 
-    if (request.method === "OPTIONS") {
-      const response = new NextResponse(null, { status: 204 })
-      if (origin && allowedOrigins.includes(origin)) {
-        response.headers.set("Access-Control-Allow-Origin", origin)
-        response.headers.set("Access-Control-Allow-Credentials", "true")
-      }
-      response.headers.set(
-        "Access-Control-Allow-Methods",
-        "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-      )
-      response.headers.set(
-        "Access-Control-Allow-Headers",
-        "Content-Type, Authorization, x-bot-token, x-telegram-id",
-      )
-      response.headers.set("Access-Control-Max-Age", "86400")
-      return response
-    }
-
-    const response = NextResponse.next()
-
+  // Handle OPTIONS
+  if (request.method === "OPTIONS") {
+    const response = new NextResponse(null, { status: 204 })
     if (origin && allowedOrigins.includes(origin)) {
       response.headers.set("Access-Control-Allow-Origin", origin)
       response.headers.set("Access-Control-Allow-Credentials", "true")
-      response.headers.set("Vary", "Origin")
     }
-
+    response.headers.set(
+      "Access-Control-Allow-Methods",
+      "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+    )
+    response.headers.set(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, x-bot-token, x-telegram-id",
+    )
+    response.headers.set("Access-Control-Max-Age", "86400")
     return response
   }
 
-  if (request.nextUrl.pathname.startsWith("/login")) {
-    return NextResponse.next()
-  }
-
+  // Auth Checks
   const session = request.cookies.get("session_user_id")
 
   if (request.nextUrl.pathname.startsWith("/admin")) {
@@ -67,13 +54,15 @@ export function proxy(request: NextRequest) {
     }
   }
 
-  return NextResponse.next()
-}
+  // Create response (next)
+  const response = NextResponse.next()
 
-export const config = {
-  matcher: [
-    "/api/:path*",
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-  ],
-}
+  // Add CORS headers to response
+  if (origin && allowedOrigins.includes(origin)) {
+    response.headers.set("Access-Control-Allow-Origin", origin)
+    response.headers.set("Access-Control-Allow-Credentials", "true")
+    response.headers.set("Vary", "Origin")
+  }
 
+  return response
+}
