@@ -101,5 +101,9 @@ model Settings {
   markupType          String  @default("percent") // percent, fixed
   markupValue         Float   @default(0)
 
+  isCryptoBotEnabled  Boolean @default(true)
+  isBybitEnabled      Boolean @default(false)
+  isStarsEnabled      Boolean @default(true)
+
   @@map("settings")
 }

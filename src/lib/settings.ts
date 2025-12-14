@@ -20,6 +20,9 @@ export interface Settings {
   pricingMode: string;
   markupType: string;
   markupValue: number;
+  isCryptoBotEnabled: boolean;
+  isBybitEnabled: boolean;
+  isStarsEnabled: boolean;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -42,6 +45,9 @@ const DEFAULT_SETTINGS: Settings = {
   pricingMode: "manual",
   markupType: "percent",
   markupValue: 0,
+  isCryptoBotEnabled: true,
+  isBybitEnabled: false,
+  isStarsEnabled: true,
 };
 
 export async function getSettings(): Promise<Settings> {
@@ -84,6 +90,9 @@ export async function getSettings(): Promise<Settings> {
       pricingMode: newSettings.pricingMode,
       markupType: newSettings.markupType,
       markupValue: newSettings.markupValue,
+      isCryptoBotEnabled: newSettings.isCryptoBotEnabled,
+      isBybitEnabled: newSettings.isBybitEnabled,
+      isStarsEnabled: newSettings.isStarsEnabled,
     };
   }
 
@@ -107,6 +116,9 @@ export async function getSettings(): Promise<Settings> {
     pricingMode: settings.pricingMode,
     markupType: settings.markupType,
     markupValue: settings.markupValue,
+    isCryptoBotEnabled: settings.isCryptoBotEnabled,
+    isBybitEnabled: settings.isBybitEnabled,
+    isStarsEnabled: settings.isStarsEnabled,
   };
 }
 
@@ -133,6 +145,9 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
       pricingMode: newSettings.pricingMode,
       markupType: newSettings.markupType,
       markupValue: newSettings.markupValue,
+      isCryptoBotEnabled: newSettings.isCryptoBotEnabled,
+      isBybitEnabled: newSettings.isBybitEnabled,
+      isStarsEnabled: newSettings.isStarsEnabled,
     },
     create: {
       id: 1,
@@ -155,6 +170,9 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
       pricingMode: newSettings.pricingMode ?? DEFAULT_SETTINGS.pricingMode,
       markupType: newSettings.markupType ?? DEFAULT_SETTINGS.markupType,
       markupValue: newSettings.markupValue ?? DEFAULT_SETTINGS.markupValue,
+      isCryptoBotEnabled: newSettings.isCryptoBotEnabled ?? DEFAULT_SETTINGS.isCryptoBotEnabled,
+      isBybitEnabled: newSettings.isBybitEnabled ?? DEFAULT_SETTINGS.isBybitEnabled,
+      isStarsEnabled: newSettings.isStarsEnabled ?? DEFAULT_SETTINGS.isStarsEnabled,
     }
   });
 
@@ -178,5 +196,8 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
     pricingMode: updated.pricingMode,
     markupType: updated.markupType,
     markupValue: updated.markupValue,
+    isCryptoBotEnabled: updated.isCryptoBotEnabled,
+    isBybitEnabled: updated.isBybitEnabled,
+    isStarsEnabled: updated.isStarsEnabled,
   };
 }

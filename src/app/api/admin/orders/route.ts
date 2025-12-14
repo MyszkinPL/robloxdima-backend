@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/session"
-import { getOrders, getUser } from "@/lib/db"
+import { getOrders, getUser, getDashboardStats } from "@/lib/db"
 import { getSettings } from "@/lib/settings"
 
 export async function GET(req: NextRequest) {
@@ -28,38 +28,24 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const orders = await getOrders()
-    const ordersCount = orders.length
-    const uniqueClients = new Set(orders.map((o) => o.username))
-    const clientsCount = uniqueClients.size
+    const { searchParams } = new URL(req.url)
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "50")
+    const search = searchParams.get("q") || undefined
+    const userId = searchParams.get("userId") || undefined
+    const status = searchParams.get("status") || undefined
+    const refundedParam = searchParams.get("refunded")
+    const refunded = refundedParam === "yes" ? true : refundedParam === "no" ? false : undefined
 
-    const monthlyRevenue = Array.from({ length: 12 }, () => 0)
-    let salesThisMonth = 0
-    const now = new Date()
-    const currentMonth = now.getMonth()
-    const currentYear = now.getFullYear()
-
-    for (const order of orders) {
-      const date = new Date(order.createdAt)
-      const month = date.getMonth()
-
-      if (month >= 0 && month < 12) {
-        monthlyRevenue[month] += order.price
-      }
-
-      if (month === currentMonth && date.getFullYear() === currentYear) {
-        salesThisMonth += 1
-      }
-    }
+    const [ordersResult, stats] = await Promise.all([
+      getOrders({ page, limit, search, userId, status, refunded }),
+      getDashboardStats()
+    ])
 
     return NextResponse.json({
-      orders,
-      summary: {
-        ordersCount,
-        clientsCount,
-        salesThisMonth,
-        monthlyRevenue,
-      },
+      orders: ordersResult.orders,
+      total: ordersResult.total,
+      summary: stats,
     })
   } catch (error) {
     console.error("GET /api/admin/orders error:", error)

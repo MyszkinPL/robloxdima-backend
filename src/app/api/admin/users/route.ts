@@ -29,20 +29,24 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const search = req.nextUrl.searchParams.get("search")?.trim() || ""
+    const searchParams = req.nextUrl.searchParams
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "50")
+    const search = searchParams.get("search")?.trim() || undefined
+    const role = searchParams.get("role") || undefined
+    const status = searchParams.get("status") || undefined
+    const ordersFilter = searchParams.get("orders") as 'with' | 'without' | 'all' | undefined
 
-    let users = await getUsers()
+    const { users, total } = await getUsers({ page, limit, search, role, status, ordersFilter })
 
-    if (search) {
-      const lowered = search.toLowerCase()
-      users = users.filter((u) => {
-        const username = u.username?.toLowerCase() || ""
-        return u.id === search || username.includes(lowered)
-      })
-    }
-
+    const userIds = users.map(u => u.id)
+    
+    // Optimize stats: only for fetched users
     const stats = await prisma.order.groupBy({
       by: ["userId"],
+      where: {
+          userId: { in: userIds }
+      },
       _sum: {
         price: true,
       },
@@ -72,7 +76,7 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    return NextResponse.json({ users: usersWithStats })
+    return NextResponse.json({ users: usersWithStats, total })
   } catch (error) {
     console.error("GET /api/admin/users error:", error)
     return NextResponse.json(

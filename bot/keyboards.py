@@ -122,20 +122,27 @@ def order_details_keyboard(order_id: str, status: str, support_link: str | None 
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def payment_method_keyboard(amount: float) -> InlineKeyboardMarkup:
-  return InlineKeyboardMarkup(
-    inline_keyboard=[
-      [
-        InlineKeyboardButton(text="🤖 Crypto Bot (Авто)", callback_data=f"topup:method:cryptobot:{amount}")
-      ],
-      [
-        InlineKeyboardButton(text="💱 Bybit Pay (Вручную)", callback_data=f"topup:method:bybit:{amount}")
-      ],
-      [
-        InlineKeyboardButton(text="⬅️ Отмена", callback_data="flow:cancel")
-      ]
-    ]
-  )
+def payment_method_keyboard(amount: float, settings: dict | None = None) -> InlineKeyboardMarkup:
+  rows = []
+  
+  # Default to true if settings not loaded for some reason, or handle strictly?
+  # Let's assume defaults: CryptoBot=True, Bybit=False (as requested), Stars=True
+  is_crypto_enabled = settings.get("isCryptoBotEnabled", True) if settings else True
+  is_bybit_enabled = settings.get("isBybitEnabled", False) if settings else False
+  is_stars_enabled = settings.get("isStarsEnabled", True) if settings else True
+
+  if is_crypto_enabled:
+    rows.append([InlineKeyboardButton(text="🤖 Crypto Bot (Авто)", callback_data=f"topup:method:cryptobot:{amount}")])
+  
+  if is_stars_enabled:
+     rows.append([InlineKeyboardButton(text="⭐ Telegram Stars", callback_data=f"topup:method:stars:{amount}")])
+
+  if is_bybit_enabled:
+    rows.append([InlineKeyboardButton(text="💱 Bybit Pay (Вручную)", callback_data=f"topup:method:bybit:{amount}")])
+
+  rows.append([InlineKeyboardButton(text="⬅️ Отмена", callback_data="flow:cancel")])
+
+  return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def flow_cancel_keyboard() -> InlineKeyboardMarkup:

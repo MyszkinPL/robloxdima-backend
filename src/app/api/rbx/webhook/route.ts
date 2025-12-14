@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
 
     let refunded = false
     let refundReason: string | null = null
-    let notifyStatus: "completed" | "refunded" | null = null
+    let notifyStatus: "completed" | "refunded" | "processing" | null = null
 
     if (status === OrderStatus.Error || status === OrderStatus.Cancelled) {
       // Only refund if not already refunded (checked above by order.status, but double safety)
@@ -156,21 +156,31 @@ export async function POST(req: NextRequest) {
       status === OrderStatus.Queued ||
       status === OrderStatus.QueuedDeferred
     ) {
-      await updateOrder(orderId, { status: "processing" })
+      if (order.status !== "processing") {
+        await updateOrder(orderId, { status: "processing" })
+        notifyStatus = "processing"
+      }
     }
 
     if (notifyStatus && settings.telegramBotToken) {
       const order = await getOrder(orderId)
       if (order) {
-        const text =
-          notifyStatus === "completed"
-            ? `✅ <b>Заказ выполнен!</b>\n\n🆔 <b>Заказ:</b> <code>${order.id}</code>\n📦 Робуксы будут начислены в ближайшее время.`
-            : `❌ <b>Заказ отменён</b>\n\n🆔 <b>Заказ:</b> <code>${order.id}</code>\n💰 Средства возвращены на баланс.`
-        await sendTelegramNotification(
-          settings.telegramBotToken,
-          order.userId,
-          text,
-        )
+        let text = ""
+        if (notifyStatus === "completed") {
+           text = `🎉 <b>Ура! Заказ выполнен!</b>\n\n🆔 <b>Заказ:</b> <code>${order.id}</code>\n📦 Робуксы успешно отправлены! Спасибо, что выбрали нас ❤️`
+        } else if (notifyStatus === "refunded") {
+           text = `❌ <b>Заказ отменён</b>\n\n🆔 <b>Заказ:</b> <code>${order.id}</code>\n💰 Средства возвращены на ваш баланс. Причина: ${refundReason || "Ошибка выполнения"}`
+        } else if (notifyStatus === "processing") {
+           text = `🚀 <b>Заказ в работе!</b>\n\n🆔 <b>Заказ:</b> <code>${order.id}</code>\n⏳ Мы начали выполнение вашего заказа. Ожидайте поступления робуксов!`
+        }
+        
+        if (text) {
+          await sendTelegramNotification(
+            settings.telegramBotToken,
+            order.userId,
+            text,
+          )
+        }
       }
     }
 

@@ -29,8 +29,6 @@ async def show_referrals(callback: CallbackQuery, api: BackendApiClient) -> None
             f"<i>Деньги с реферального баланса можно использовать для покупок в боте.</i>"
         )
         
-        # TODO: Add Withdraw/Transfer button if balance > 0
-        
         rows = []
         if balance > 0:
             rows.append([InlineKeyboardButton(text="💸 Перевести на основной баланс", callback_data="referrals:transfer")])

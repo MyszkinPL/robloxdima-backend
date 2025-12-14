@@ -13,5 +13,9 @@ export async function GET() {
     supportLink: settings.supportLink,
     faq: settings.faq,
     bybitStoreUid: settings.bybitStoreUid || "",
+    isCryptoBotEnabled: settings.isCryptoBotEnabled,
+    isBybitEnabled: settings.isBybitEnabled,
+    isStarsEnabled: settings.isStarsEnabled,
+    referralPercent: settings.referralPercent,
   })
 }

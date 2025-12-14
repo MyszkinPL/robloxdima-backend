@@ -3,8 +3,9 @@ from __future__ import annotations
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, LabeledPrice, PreCheckoutQuery
 import httpx
+import math
 
 from .backend_api import BackendApiClient
 from .keyboards import (
@@ -207,10 +208,15 @@ async def handle_topup_amount(message: Message, state: FSMContext, api: BackendA
         await message.answer("⚠️ Сумма должна быть больше нуля. Попробуйте ещё раз.")
         return
 
+    try:
+        settings = await api.get_public_settings()
+    except:
+        settings = {}
+
     await message.answer(
         f"💳 <b>Выберите способ оплаты</b>\n"
         f"Сумма: {amount} ₽",
-        reply_markup=payment_method_keyboard(amount)
+        reply_markup=payment_method_keyboard(amount, settings)
     )
     await state.clear()
 
@@ -327,4 +333,68 @@ async def handle_bybit_check(callback: CallbackQuery, api: BackendApiClient) -> 
              
     except Exception as e:
         await callback.answer("Ошибка проверки. Попробуйте позже.", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("topup:method:stars:"))
+async def handle_topup_stars(callback: CallbackQuery, api: BackendApiClient) -> None:
+    if not callback.from_user:
+        return
+
+    try:
+        amount = float(callback.data.split(":")[-1])
+    except ValueError:
+        await callback.answer("Ошибка суммы", show_alert=True)
+        return
+
+    # Rate: 1 Star = 2 RUB (approximate, configurable later)
+    stars_amount = math.ceil(amount / 2.0)
+    
+    if stars_amount < 1:
+        stars_amount = 1
+
+    await callback.message.answer_invoice(
+        title="Пополнение баланса",
+        description=f"Пополнение баланса на {amount} ₽",
+        payload=f"topup_stars:{amount}",
+        currency="XTR",
+        prices=[LabeledPrice(label="Пополнение", amount=stars_amount)],
+        provider_token="" # Empty for Stars
+    )
+    await callback.answer()
+
+
+@router.pre_checkout_query()
+async def handle_pre_checkout_query(pre_checkout_query: PreCheckoutQuery) -> None:
+    await pre_checkout_query.answer(ok=True)
+
+
+@router.message(F.successful_payment)
+async def handle_successful_payment(message: Message, api: BackendApiClient) -> None:
+    payment = message.successful_payment
+    if not payment:
+        return
+
+    if payment.invoice_payload.startswith("topup_stars:"):
+        try:
+            amount_rub = float(payment.invoice_payload.split(":")[1])
+        except ValueError:
+            amount_rub = 0.0 # Should not happen
+
+        if amount_rub > 0:
+            try:
+                await api.add_user_balance(
+                    telegram_id=message.from_user.id,
+                    amount=amount_rub,
+                    source="stars",
+                    paymentId=payment.telegram_payment_charge_id,
+                    providerData=payment.model_dump()
+                )
+                await message.answer(
+                    f"✅ <b>Оплата прошла успешно!</b>\n\n"
+                    f"Баланс пополнен на {amount_rub} ₽"
+                )
+            except Exception as e:
+                await message.answer("❌ Произошла ошибка при зачислении средств. Обратитесь к администратору.")
+                print(f"Stars payment error: {e}")
+
 

@@ -91,105 +91,71 @@ function mapPayment(payment: PrismaPayment): Payment {
 }
 
 // Orders
-export async function getOrders(): Promise<Order[]> {
-  const orders = await prisma.order.findMany({
-    orderBy: { createdAt: 'desc' }
-  });
-  return orders.map(mapOrder);
+export interface GetOrdersOptions {
+  page?: number;
+  limit?: number;
+  search?: string;
+  userId?: string;
+  status?: string;
+  refunded?: boolean;
 }
 
-export interface OrderRefundInfo {
-  refunded: boolean;
-  source?: RefundOrderSource;
-  initiatorUserId?: string | null;
-}
+export async function getOrders(options: GetOrdersOptions = {}): Promise<{ orders: Order[]; total: number }> {
+  const { page = 1, limit = 50, search, userId, status, refunded } = options;
+  const skip = (page - 1) * limit;
+  const where: any = {};
 
-export async function getOrderRefundInfo(orderId: string): Promise<OrderRefundInfo> {
-  const log = await prisma.log.findFirst({
-    where: {
-      action: "order_refund",
-      details: {
-        contains: `"orderId":"${orderId}"`,
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
-  if (!log || !log.details) {
-    return { refunded: false };
+  if (userId) where.userId = userId;
+  if (status && status !== 'all') where.status = status;
+  if (refunded) {
+    where.status = 'failed'; // Assuming refunds are marked as failed
+    // Or check logs if needed, but simple check for now
+  }
+  
+  if (search) {
+      where.OR = [
+          { id: { contains: search, mode: 'insensitive' } },
+          { userId: { contains: search, mode: 'insensitive' } },
+          { username: { contains: search, mode: 'insensitive' } }
+      ];
   }
 
-  try {
-    const parsed = JSON.parse(log.details) as {
-      orderId?: string;
-      source?: RefundOrderSource;
-      initiatorUserId?: string;
-    };
-
-    return {
-      refunded: true,
-      source: parsed.source,
-      initiatorUserId: parsed.initiatorUserId ?? null,
-    };
-  } catch {
-    return { refunded: true };
-  }
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit
+    }),
+    prisma.order.count({ where })
+  ]);
+  return { orders: orders.map(mapOrder), total };
 }
 
 export async function getOrder(id: string): Promise<Order | undefined> {
   const order = await prisma.order.findUnique({
-    where: { id },
+    where: { id }
   });
   return order ? mapOrder(order) : undefined;
 }
 
-export async function searchOrders(query: string): Promise<Order[]> {
-  const orders = await prisma.order.findMany({
-    where: {
-      OR: [
-        { id: { equals: query } }, // Exact match for ID
-        { username: { contains: query, mode: 'insensitive' } } // Partial match for username
-      ]
-    },
-    orderBy: { createdAt: 'desc' }
-  });
-  return orders.map(mapOrder);
-}
-
-export async function updateUserRole(userId: string, role: 'user' | 'admin'): Promise<void> {
-  await prisma.user.update({
-    where: { id: userId },
-    data: { role }
-  });
-}
-
-export async function getUserOrders(userId: string): Promise<Order[]> {
-  const orders = await prisma.order.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' }
-  });
-  return orders.map(mapOrder);
-}
-
-export async function addOrder(order: Order): Promise<void> {
-  await prisma.order.create({
+export async function createOrder(order: Omit<Order, 'id' | 'createdAt' | 'status'>): Promise<Order> {
+  const created = await prisma.order.create({
     data: {
-      id: order.id,
       userId: order.userId,
       username: order.username,
       type: order.type,
       amount: order.amount,
       price: order.price,
-      status: order.status,
+      status: 'pending',
       placeId: order.placeId,
-      createdAt: new Date(order.createdAt),
     }
   });
+  return mapOrder(created);
 }
 
-export type RefundOrderSource = "admin_cancel" | "rbx_webhook" | "order_create" | "system";
-
-export type RefundOrderReason =
+type RefundOrderSource = "admin" | "system" | "user_cancel" | "admin_cancel" | "rbx_webhook" | "order_create";
+type RefundOrderReason =
   | "ok"
   | "order_not_found"
   | "already_completed"
@@ -299,11 +265,50 @@ export async function updateOrder(id: string, updates: Partial<Order>): Promise<
 }
 
 // Users
-export async function getUsers(): Promise<User[]> {
-  const users = await prisma.user.findMany({
-    orderBy: { createdAt: 'desc' }
-  });
-  return users.map(mapUser);
+export interface GetUsersOptions {
+  page?: number;
+  limit?: number;
+  search?: string;
+  role?: string;
+  status?: string;
+  ordersFilter?: 'with' | 'without' | 'all';
+}
+
+export async function getUsers(options: GetUsersOptions = {}): Promise<{ users: User[]; total: number }> {
+  const { page = 1, limit = 50, search, role, status, ordersFilter } = options;
+  const skip = (page - 1) * limit;
+  const where: any = {};
+
+  if (role && role !== 'all') where.role = role;
+  if (status && status !== 'all') {
+      if (status === 'banned') where.isBanned = true;
+      if (status === 'active') where.isBanned = false;
+  }
+  
+  if (ordersFilter === 'with') {
+    where.orders = { some: {} };
+  } else if (ordersFilter === 'without') {
+    where.orders = { none: {} };
+  }
+
+  if (search) {
+      where.OR = [
+          { id: { contains: search, mode: 'insensitive' } },
+          { username: { contains: search, mode: 'insensitive' } },
+          { firstName: { contains: search, mode: 'insensitive' } }
+      ];
+  }
+
+  const [users, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit
+    }),
+    prisma.user.count({ where })
+  ]);
+  return { users: users.map(mapUser), total };
 }
 
 export async function getUser(telegramId: string): Promise<User | undefined> {
@@ -567,3 +572,167 @@ export async function getAdminLogs(options: GetAdminLogsOptions = {}): Promise<{
     total,
   };
 }
+
+// Dashboard Stats
+export async function getDashboardStats() {
+  const [totalOrders, totalUsers, totalVolume, recentOrders] = await Promise.all([
+    prisma.order.count(),
+    prisma.user.count(),
+    prisma.order.aggregate({
+      _sum: {
+        price: true
+      },
+      where: {
+        status: 'completed'
+      }
+    }),
+    prisma.order.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' }
+    })
+  ]);
+
+  return {
+    totalOrders,
+    totalUsers,
+    totalVolume: totalVolume._sum.price || 0,
+    recentOrders: recentOrders.map(mapOrder)
+  };
+}
+
+export interface DetailedStatsData {
+  totalRevenue: number
+  ordersCount: number
+  usersCount: number
+  bannedUsersCount: number
+  activeUsersCount: number
+  ordersByStatus: { status: string; count: number }[]
+  topBuyers: { userId: string; username: string; totalSpent: number }[]
+  dailyRevenue: { date: string; amount: number }[]
+  paymentsByMethod: { method: string; count: number; amount: number }[]
+}
+
+export async function getDetailedStats(): Promise<DetailedStatsData> {
+  const [
+    totalRevenueAgg,
+    ordersCount,
+    usersCount,
+    bannedUsersCount,
+    ordersByStatusAgg,
+    topBuyersAgg,
+    dailyRevenueAgg,
+    paymentsByMethodAgg
+  ] = await Promise.all([
+    prisma.order.aggregate({
+      _sum: { price: true },
+      where: { status: 'completed' }
+    }),
+    prisma.order.count(),
+    prisma.user.count(),
+    prisma.user.count({ where: { isBanned: true } }),
+    prisma.order.groupBy({
+      by: ['status'],
+      _count: { id: true }
+    }),
+    prisma.order.groupBy({
+      by: ['userId'],
+      _sum: { price: true },
+      where: { status: 'completed' },
+      orderBy: { _sum: { price: 'desc' } },
+      take: 5
+    }),
+    prisma.$queryRaw`
+      SELECT DATE("createdAt") as date, SUM("price") as amount
+      FROM "orders"
+      WHERE "status" = 'completed' AND "createdAt" > NOW() - INTERVAL '30 days'
+      GROUP BY DATE("createdAt")
+      ORDER BY DATE("createdAt") ASC
+    ` as Promise<{ date: Date, amount: number }[]>,
+    prisma.payment.groupBy({
+      by: ['method'],
+      _count: { id: true },
+      _sum: { amount: true },
+      where: { status: 'paid' }
+    })
+  ]);
+
+  // Fetch usernames for top buyers
+  const topBuyerIds = topBuyersAgg.map(b => b.userId);
+  const topBuyerUsers = await prisma.user.findMany({
+    where: { id: { in: topBuyerIds } },
+    select: { id: true, username: true, firstName: true }
+  });
+
+  const topBuyers = topBuyersAgg.map(b => {
+    const user = topBuyerUsers.find(u => u.id === b.userId);
+    return {
+      userId: b.userId,
+      username: user?.username || user?.firstName || 'Unknown',
+      totalSpent: b._sum.price || 0
+    };
+  });
+
+  return {
+    totalRevenue: totalRevenueAgg._sum.price || 0,
+    ordersCount,
+    usersCount,
+    bannedUsersCount,
+    activeUsersCount: usersCount - bannedUsersCount,
+    ordersByStatus: ordersByStatusAgg.map(s => ({ status: s.status, count: s._count.id })),
+    topBuyers,
+    dailyRevenue: dailyRevenueAgg.map(d => ({ 
+      date: new Date(d.date).toISOString(), 
+      amount: d.amount 
+    })),
+    paymentsByMethod: paymentsByMethodAgg.map(p => ({
+      method: p.method,
+      count: p._count.id,
+      amount: p._sum.amount || 0
+    }))
+  };
+}
+
+// Aliases and Helpers for compatibility
+export const addOrder = createOrder;
+
+export async function getOrderRefundInfo(orderId: string) {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      user: true,
+    }
+  });
+
+  if (!order) return null;
+
+  // Fetch logs related to this order refund
+  const refundLogs = await prisma.log.findMany({
+    where: {
+      details: { contains: orderId },
+      action: { in: ['order_refund', 'order_refund_initiated'] }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  return {
+    order: mapOrder(order),
+    user: mapUser(order.user),
+    logs: refundLogs
+  };
+}
+
+export async function getUserOrders(userId: string, page: number = 1, limit: number = 50) {
+  return getOrders({ userId, page, limit });
+}
+
+export async function searchOrders(query: string, page: number = 1, limit: number = 50) {
+  return getOrders({ search: query, page, limit });
+}
+
+export async function updateUserRole(userId: string, role: 'user' | 'admin') {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { role }
+  });
+}
+

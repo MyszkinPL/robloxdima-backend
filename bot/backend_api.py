@@ -98,10 +98,9 @@ class BackendApiClient:
 
 
   async def create_topup(self, telegram_id: int, amount: float) -> Dict[str, Any]:
-    payload = {"amount": amount}
     res = await self._client.post(
       "/api/wallet/topup",
-      json=payload,
+      json={"amount": amount},
       headers=self._headers_for_user(telegram_id),
     )
     res.raise_for_status()
@@ -366,6 +365,22 @@ class BackendApiClient:
       "/api/admin/settings",
       json=payload,
       headers=self._headers_for_user(telegram_id),
+    )
+    res.raise_for_status()
+    return res.json()
+
+  async def add_user_balance(self, telegram_id: int, amount: float, source: str, payment_id: str | None = None, provider_data: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    payload = {
+      "userId": telegram_id,
+      "amount": amount,
+      "source": source,
+      "paymentId": payment_id,
+      "providerData": provider_data
+    }
+    res = await self._client.post(
+      "/api/bot/balance/add",
+      json=payload,
+      headers={"x-bot-token": self._bot_token},
     )
     res.raise_for_status()
     return res.json()

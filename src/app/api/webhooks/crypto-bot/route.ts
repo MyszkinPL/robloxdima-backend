@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
         const payment = await getPayment(paymentId)
         if (payment) {
           await addToUserBalance(payment.userId, payment.amount)
-          const text = `✅ <b>Баланс пополнен!</b>\n\n💰 Сумма: <code>${payment.amount.toFixed(2)} ₽</code>`
+          const text = `💎 <b>Ваш баланс пополнен!</b>\n\n💰 Сумма: <code>${payment.amount.toFixed(2)} ₽</code>\n✨ Теперь вы можете оплатить свои покупки!`
           await sendTelegramNotification(
             settings.telegramBotToken,
             payment.userId,
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
                 await sendTelegramNotification(
                   settings.telegramBotToken,
                   user.referrerId,
-                  `💰 <b>Реферальный бонус!</b>\n\nВам начислено <code>${bonus.toFixed(2)} ₽</code> за пополнение реферала ${user.firstName}`
+                  `💸 <b>Реферальный бонус!</b>\n\nВам начислено <code>${bonus.toFixed(2)} ₽</code> за активность вашего реферала ${user.firstName}. Так держать! 🚀`
                 )
               }
           }
