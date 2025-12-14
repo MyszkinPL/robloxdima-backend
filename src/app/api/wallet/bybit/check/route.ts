@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getPayment, prisma } from "@/lib/db"
 import { queryBybitOrder } from "@/lib/bybit/service"
+import { sendTelegramNotification } from "@/lib/telegram"
 
 export async function POST(req: NextRequest) {
   try {
@@ -85,6 +86,10 @@ export async function POST(req: NextRequest) {
               })
             }
          })
+
+         // Send notification
+         const text = `💎 <b>Баланс пополнен!</b>\n\n💰 <b>Сумма:</b> <code>${payment.amount.toFixed(2)} ₽</code>\n💳 <b>Способ:</b> Bybit\n\n✨ Теперь вы можете оплатить покупки!`
+         await sendTelegramNotification(payment.userId, text)
        })
 
        return NextResponse.json({ success: true, paid: true })

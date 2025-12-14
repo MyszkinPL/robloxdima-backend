@@ -147,6 +147,10 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      // Calculate cost
+      const settings = await getSettings()
+      const cost = Math.ceil((amount * settings.buyRate) * 100) / 100
+
       const newOrder: Order = {
         id: orderId,
         userId,
@@ -154,6 +158,7 @@ export async function POST(req: NextRequest) {
         type: "gamepass",
         amount,
         price,
+        cost,
         status: "processing",
         createdAt: new Date().toISOString(),
         placeId: String(placeId),

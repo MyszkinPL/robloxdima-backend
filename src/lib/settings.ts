@@ -131,6 +131,7 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
     where: { id: 1 },
     update: {
       rate: newSettings.rate,
+      buyRate: newSettings.buyRate,
       maintenance: newSettings.maintenance,
       rbxKey: newSettings.rbxKey || null,
       cryptoBotToken: newSettings.cryptoBotToken || null,
@@ -156,6 +157,7 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
     create: {
       id: 1,
       rate: newSettings.rate ?? DEFAULT_SETTINGS.rate,
+      buyRate: newSettings.buyRate ?? DEFAULT_SETTINGS.buyRate,
       maintenance: newSettings.maintenance ?? DEFAULT_SETTINGS.maintenance,
       rbxKey: newSettings.rbxKey,
       cryptoBotToken: newSettings.cryptoBotToken,
@@ -182,6 +184,7 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
 
   return {
     rate: updated.rate,
+    buyRate: updated.buyRate || 0.0,
     maintenance: updated.maintenance,
     rbxKey: updated.rbxKey || "",
     cryptoBotToken: updated.cryptoBotToken || "",

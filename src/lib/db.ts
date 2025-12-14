@@ -345,7 +345,7 @@ export async function createUserOrUpdate(userData: Partial<User> & { id: string 
     role: rest.role || 'user',
     balance: rest.balance || 0,
     createdAt: rest.createdAt ? new Date(rest.createdAt) : new Date(),
-    referrerId: rest.referrerId,
+    referrer: rest.referrerId ? { connect: { id: rest.referrerId } } : undefined,
     referralBalance: rest.referralBalance || 0,
     bybitUid: rest.bybitUid,
   };

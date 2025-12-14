@@ -3,31 +3,7 @@ import crypto from "crypto"
 import { getSettings } from "@/lib/settings"
 import { getPayment, addToUserBalance, addToReferralBalance } from "@/lib/db"
 import { prisma } from "@/lib/prisma"
-
-async function sendTelegramNotification(
-  token: string | null | undefined,
-  chatId: string,
-  text: string,
-) {
-  if (!token) {
-    return
-  }
-  try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: "HTML",
-      }),
-    })
-  } catch (error) {
-    console.error("Failed to send Telegram notification:", error)
-  }
-}
+import { sendTelegramNotification } from "@/lib/telegram"
 
 export async function POST(req: NextRequest) {
   try {
@@ -76,9 +52,8 @@ export async function POST(req: NextRequest) {
         const payment = await getPayment(paymentId)
         if (payment) {
           await addToUserBalance(payment.userId, payment.amount)
-          const text = `💎 <b>Ваш баланс пополнен!</b>\n\n💰 Сумма: <code>${payment.amount.toFixed(2)} ₽</code>\n✨ Теперь вы можете оплатить свои покупки!`
+          const text = `💎 <b>Баланс пополнен!</b>\n\n💰 <b>Сумма:</b> <code>${payment.amount.toFixed(2)} ₽</code>\n\n✨ Теперь вы можете оплатить покупки!`
           await sendTelegramNotification(
-            settings.telegramBotToken,
             payment.userId,
             text,
           )
@@ -93,9 +68,8 @@ export async function POST(req: NextRequest) {
              if (bonus > 0) {
                 await addToReferralBalance(user.referrerId, bonus)
                 await sendTelegramNotification(
-                  settings.telegramBotToken,
                   user.referrerId,
-                  `💸 <b>Реферальный бонус!</b>\n\nВам начислено <code>${bonus.toFixed(2)} ₽</code> за активность вашего реферала ${user.firstName}. Так держать! 🚀`
+                  `💸 <b>Реферальный бонус!</b>\n\n💰 <b>Сумма:</b> <code>${bonus.toFixed(2)} ₽</code>\n👤 <b>Реферал:</b> ${user.firstName}\n\n🚀 Спасибо, что приглашаете друзей!`
                 )
               }
           }

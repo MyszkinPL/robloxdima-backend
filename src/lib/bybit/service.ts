@@ -47,7 +47,7 @@ export async function createBybitPayment(
 
   console.log("Creating Bybit Pay order:", JSON.stringify(payload, null, 2))
 
-  const response = await client.post<BybitPayOrderResponse>("/v5/bybitpay/create_pay", payload)
+  const response = await client.post<BybitPayOrderResponse>("/v5/bybitpay/create_pay", payload as unknown as Record<string, unknown>)
 
   if (response.retCode !== 0) {
     throw new Error(`Bybit Pay Error: ${response.retMsg} (Code: ${response.retCode})`)

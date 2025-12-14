@@ -106,6 +106,9 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      // Calculate cost
+      const cost = Math.ceil((amount * settings.buyRate) * 100) / 100
+
       const newOrder: Order = {
         id: orderId,
         userId: sessionUser.id,
@@ -113,6 +116,7 @@ export async function POST(req: NextRequest) {
         type: "vip",
         amount,
         price,
+        cost,
         status: "processing",
         createdAt: new Date().toISOString(),
         placeId: String(placeId),

@@ -3,31 +3,7 @@ import { getSettings } from "@/lib/settings"
 import { getOrder, refundOrder, updateOrder } from "@/lib/db"
 import { isValidRbxcrateSign, RBXCRATE_WEBHOOK_IPS } from "@/lib/rbxcrate/utils/verify"
 import { OrderStatus, RbxCrateWebhook } from "@/lib/rbxcrate/types"
-
-async function sendTelegramNotification(
-  token: string | null | undefined,
-  chatId: string,
-  text: string,
-) {
-  if (!token) {
-    return
-  }
-  try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: "HTML",
-      }),
-    })
-  } catch (error) {
-    console.error("Failed to send Telegram notification:", error)
-  }
-}
+import { sendTelegramNotification } from "@/lib/telegram"
 
 export async function POST(req: NextRequest) {
   try {
@@ -162,21 +138,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (notifyStatus && settings.telegramBotToken) {
+    if (notifyStatus) {
       const order = await getOrder(orderId)
       if (order) {
         let text = ""
         if (notifyStatus === "completed") {
-           text = `🎉 <b>Ура! Заказ выполнен!</b>\n\n🆔 <b>Заказ:</b> <code>${order.id}</code>\n📦 Робуксы успешно отправлены! Спасибо, что выбрали нас ❤️`
+           text = `✅ <b>Заказ выполнен!</b>\n\n🆔 <b>ID:</b> <code>${order.id}</code>\n📦 <b>Робуксы:</b> <code>${order.amount}</code>\n💰 <b>Сумма:</b> <code>${order.price} ₽</code>\n\n🎉 Робуксы успешно отправлены! Спасибо за покупку!`
         } else if (notifyStatus === "refunded") {
-           text = `❌ <b>Заказ отменён</b>\n\n🆔 <b>Заказ:</b> <code>${order.id}</code>\n💰 Средства возвращены на ваш баланс. Причина: ${refundReason || "Ошибка выполнения"}`
+           text = `❌ <b>Заказ отменен</b>\n\n🆔 <b>ID:</b> <code>${order.id}</code>\n💰 <b>Возврат:</b> <code>${order.price} ₽</code>\n\n⚠️ Причина: ${refundReason || "Ошибка выполнения"}\nСредства возвращены на баланс.`
         } else if (notifyStatus === "processing") {
-           text = `🚀 <b>Заказ в работе!</b>\n\n🆔 <b>Заказ:</b> <code>${order.id}</code>\n⏳ Мы начали выполнение вашего заказа. Ожидайте поступления робуксов!`
+           text = `⏳ <b>Заказ в обработке</b>\n\n🆔 <b>ID:</b> <code>${order.id}</code>\n📦 <b>Робуксы:</b> <code>${order.amount}</code>\n\n🚀 Мы начали выполнение заказа. Ожидайте поступления!`
         }
         
         if (text) {
           await sendTelegramNotification(
-            settings.telegramBotToken,
             order.userId,
             text,
           )
