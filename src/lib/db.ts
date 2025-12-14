@@ -470,19 +470,90 @@ export interface AdminLogEntry {
   createdAt: string;
 }
 
-export async function getAdminLogs(): Promise<AdminLogEntry[]> {
-  const logs = await prisma.log.findMany({
-    include: { user: true },
-    orderBy: { createdAt: "desc" },
-    take: 500,
-  });
+export interface GetAdminLogsOptions {
+  page?: number;
+  limit?: number;
+  search?: string;
+  field?: string; // 'user', 'order', 'admin'
+  type?: string; // 'refunds', 'bans', 'bybit', 'all'
+  from?: string;
+  to?: string;
+}
 
-  return logs.map((log) => ({
-    id: log.id,
-    userId: log.userId,
-    userName: log.user?.username ?? log.user?.firstName ?? null,
-    action: log.action,
-    details: log.details,
-    createdAt: log.createdAt.toISOString(),
-  }));
+export async function getAdminLogs(options: GetAdminLogsOptions = {}): Promise<{ logs: AdminLogEntry[]; total: number }> {
+  const { page = 1, limit = 50, search, field, type, from, to } = options;
+  const skip = (page - 1) * limit;
+
+  const where: any = {};
+
+  // Date filtering
+  if (from || to) {
+    where.createdAt = {};
+    if (from) {
+      where.createdAt.gte = new Date(from);
+    }
+    if (to) {
+      const toDate = new Date(to);
+      toDate.setHours(23, 59, 59, 999);
+      where.createdAt.lte = toDate;
+    }
+  }
+
+  // Type filtering (Action)
+  if (type) {
+    if (type === "refunds") {
+      where.action = { in: ["order_refund", "order_refund_initiated"] };
+    } else if (type === "bans") {
+      where.action = { in: ["BAN", "UNBAN"] };
+    } else if (type === "bybit") {
+      where.action = "bybit_deposit";
+    }
+  }
+
+  // Search filtering
+  if (search) {
+    if (field === "user") {
+      where.OR = [
+        { userId: { contains: search, mode: "insensitive" } },
+        { user: { username: { contains: search, mode: "insensitive" } } },
+        { user: { firstName: { contains: search, mode: "insensitive" } } },
+      ];
+    } else if (field === "admin") {
+       // Search in details for initiatorUserId
+       where.details = { contains: `"initiatorUserId":"${search}"` };
+    } else if (field === "order") {
+       // Search in details for orderId
+       where.details = { contains: `"orderId":"${search}"` };
+    } else {
+       // General search
+       where.OR = [
+         { userId: { contains: search, mode: "insensitive" } },
+         { user: { username: { contains: search, mode: "insensitive" } } },
+         { details: { contains: search, mode: "insensitive" } },
+       ];
+    }
+  }
+
+  const [logs, total] = await Promise.all([
+    prisma.log.findMany({
+      where,
+      include: { user: true },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.log.count({ where }),
+  ]);
+
+  return {
+    logs: logs.map((log) => ({
+      id: log.id,
+      userId: log.userId,
+      userName: log.user?.username ?? log.user?.firstName ?? null,
+      action: log.action,
+      details: log.details,
+      createdAt: log.createdAt.toISOString(),
+    })),
+    total,
+  };
 }
