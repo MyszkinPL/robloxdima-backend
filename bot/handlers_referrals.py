@@ -20,13 +20,13 @@ async def show_referrals(callback: CallbackQuery, api: BackendApiClient) -> None
         percent = stats.get("referralPercent", 5)
         
         text = (
-            f"<b>👥 Реферальная система</b>\n\n"
+            f"👥 <b>Реферальная система</b>\n\n"
             f"Приглашайте друзей и получайте <b>{percent}%</b> от суммы их покупок на свой реферальный баланс!\n\n"
             f"🔗 <b>Ваша ссылка:</b>\n<code>{ref_link}</code>\n\n"
             f"📊 <b>Статистика:</b>\n"
             f"• Приглашено: <b>{count}</b> чел.\n"
             f"• Баланс: <b>{balance:.2f} ₽</b>\n\n"
-            f"<i>Деньги с реферального баланса можно использовать для покупок в боте.</i>"
+            f"<blockquote>ℹ️ Деньги с реферального баланса можно использовать для покупок в боте.</blockquote>"
         )
         
         rows = []
@@ -58,4 +58,4 @@ async def handle_referral_transfer(callback: CallbackQuery, api: BackendApiClien
         await show_referrals(callback, api)
         
     except Exception as e:
-        await callback.answer("Ошибка перевода. Возможно, баланс пуст.", show_alert=True)
+        await callback.answer("⚠️ Ошибка перевода. Возможно, баланс пуст.", show_alert=True)

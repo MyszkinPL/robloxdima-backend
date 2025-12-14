@@ -47,13 +47,13 @@ async def handle_balance(callback: CallbackQuery, api: BackendApiClient) -> None
     
     text = (
         f"👤 <b>Личный кабинет</b>\n\n"
-        f"🆔 ID: <code>{user_id}</code>\n"
-        f"👤 Имя: {full_name}\n"
-        f"📧 Username: @{username}\n"
+        f"<blockquote>🆔 ID: <code>{user_id}</code></blockquote>\n"
+        f"<blockquote>👤 Имя: {full_name}</blockquote>\n"
+        f"<blockquote>📧 Username: @{username}</blockquote>\n"
         f"➖➖➖➖➖➖➖➖➖➖\n"
-        f"💰 <b>Баланс:</b> <code>{balance} ₽</code>\n"
-        f"📦 <b>Заказов:</b> <code>{total_orders}</code>\n"
-        f"💸 <b>Потрачено:</b> <code>{total_spent} ₽</code>"
+        f"💰 <b>Ваш баланс:</b> <code>{balance} ₽</code>\n"
+        f"📦 <b>Всего заказов:</b> <code>{total_orders}</code>\n"
+        f"💸 <b>Потрачено за все время:</b> <code>{total_spent} ₽</code>"
     )
     await callback.message.edit_text(text, reply_markup=profile_keyboard())
     await callback.answer()
@@ -141,11 +141,12 @@ async def handle_history_details(callback: CallbackQuery, api: BackendApiClient)
     }.get(status, status)
 
     text = (
-        f"💳 <b>Пополнение #{payment.get('id')[-8:]}</b>\n\n"
-        f"💰 <b>Сумма:</b> {payment.get('amount')} ₽\n"
-        f"💳 <b>Способ:</b> {payment.get('method')}\n"
+        f"🧾 <b>Чек пополнения</b>\n\n"
+        f"💳 <b>ID платежа:</b> <code>{payment.get('id')}</code>\n"
+        f"💰 <b>Сумма:</b> <code>{payment.get('amount')} ₽</code>\n"
+        f"🏦 <b>Способ оплаты:</b> {payment.get('method')}\n"
         f"📊 <b>Статус:</b> {status_text}\n"
-        f"📅 <b>Дата:</b> {payment.get('createdAt')}\n"
+        f"📅 <b>Дата создания:</b> {payment.get('createdAt')}\n"
     )
 
     # Back button to history page (calculating page might be hard, so just back to history start)
@@ -176,10 +177,12 @@ async def handle_stock_info(callback: CallbackQuery, api: BackendApiClient) -> N
     rate_per_100 = round(rate * 100, 2)
 
     text = (
-        f"📊 <b>Курс и наличие</b>\n\n"
-        f"💰 <b>Курс:</b> <code>{rate_per_100} ₽</code> за 100 R$\n"
-        f"📦 <b>В наличии:</b> <code>{robux_available} R$</code>\n\n"
-        f"<blockquote>Курс может меняться в зависимости от рынка.</blockquote>"
+        f"📊 <b>Актуальная информация</b>\n\n"
+        f"💎 <b>Курс валюты:</b>\n"
+        f"🔹 <code>{rate_per_100} ₽</code> = 100 R$\n\n"
+        f"📦 <b>Доступно к покупке:</b>\n"
+        f"🔹 <code>{robux_available} R$</code>\n\n"
+        f"<blockquote>💡 Курс может меняться в зависимости от ситуации на рынке.</blockquote>"
     )
     
     await callback.message.edit_text(text, reply_markup=stock_keyboard())
@@ -191,7 +194,9 @@ async def handle_topup_start(callback: CallbackQuery, state: FSMContext) -> None
     await state.set_state(WalletStates.waiting_topup_amount)
     await callback.message.edit_text(
         "💳 <b>Пополнение баланса</b>\n\n"
-        "<blockquote>Введите сумму пополнения в рублях (например, 500):</blockquote>",
+        "👇 <b>Введите сумму в рублях:</b>\n"
+        "<blockquote>Минимальная сумма: 10 ₽</blockquote>\n\n"
+        "<i>Отправьте сообщение с числом, например: 500</i>",
         reply_markup=flow_cancel_keyboard(),
     )
     await callback.answer()
@@ -219,8 +224,9 @@ async def handle_topup_amount(message: Message, state: FSMContext, api: BackendA
         settings = {}
 
     await message.answer(
-        f"💳 <b>Выберите способ оплаты</b>\n"
-        f"Сумма: {amount} ₽",
+        f"💳 <b>Выберите способ оплаты</b>\n\n"
+        f"💰 <b>Сумма к оплате:</b> <code>{amount} ₽</code>\n\n"
+        "👇 Нажмите на кнопку ниже:",
         reply_markup=payment_method_keyboard(amount, settings)
     )
     await state.clear()
@@ -264,9 +270,9 @@ async def handle_topup_cryptobot(callback: CallbackQuery, api: BackendApiClient)
 
     await callback.message.edit_text(
         f"💳 <b>Счёт Crypto Bot создан!</b>\n\n"
-        f"<blockquote>Сумма к оплате: {amount} ₽</blockquote>\n\n"
-        "Нажмите кнопку ниже, чтобы оплатить.\n"
-        "После оплаты вернитесь в бот и обновите баланс.",
+        f"💰 <b>К оплате:</b> <code>{amount} ₽</code>\n\n"
+        "<blockquote>⚠️ У вас есть 15 минут на оплату.</blockquote>\n\n"
+        "👇 Нажмите кнопку ниже для перехода к оплате:",
         reply_markup=topup_confirm_keyboard(payment_url),
     )
 
@@ -312,8 +318,10 @@ async def handle_topup_bybit(callback: CallbackQuery, api: BackendApiClient, sta
     
     text = (
         f"💱 <b>Оплата через Bybit Pay</b>\n\n"
-        f"Сумма: <b>{amount} RUB</b> (~{amount_usdt} USDT)\n\n"
-        f"Нажмите кнопку ниже, чтобы перейти к оплате."
+        f"💰 <b>Сумма:</b> <code>{amount} RUB</code>\n"
+        f"💲 <b>В USDT:</b> <code>~{amount_usdt} USDT</code>\n\n"
+        f"<blockquote>⚠️ После оплаты нажмите «Проверить оплату»</blockquote>\n\n"
+        f"👇 Нажмите кнопку ниже для перехода:"
     )
     
     await callback.message.edit_text(text, reply_markup=keyboard)

@@ -90,7 +90,14 @@ export async function POST(req: NextRequest) {
     const amount = Math.ceil(rawAmount * 100) / 100
 
     const description = `Пополнение баланса (${user.username || user.firstName})`
-    const invoice = await createInvoice(amount, description, user.id)
+    // User requested to use the specific success page
+    const invoice = await createInvoice(
+      amount,
+      description,
+      user.id,
+      "viewItem",
+      "https://rbtrade.org/payment/success"
+    )
 
     type InvoiceShape = {
       invoice_id: number | string

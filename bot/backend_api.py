@@ -186,14 +186,21 @@ class BackendApiClient:
     username: str,
     amount: int,
     place_id: str,
+    order_type: str = "gamepass",
   ) -> Dict[str, Any]:
     payload = {
       "username": username,
       "amount": amount,
       "placeId": place_id,
+      "type": order_type,
     }
+    
+    url = "/api/orders"
+    if order_type == "vip_server":
+        url = "/api/orders/vip-server"
+
     res = await self._client.post(
-      "/api/orders",
+      url,
       json=payload,
       headers=self._headers_for_user(telegram_id),
     )

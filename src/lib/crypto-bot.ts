@@ -52,12 +52,18 @@ async function request<T>(method: string, params: CryptoBotRequestParams = {}): 
 export async function getCryptoBotClient() {
   return {
     getMe: getMe,
-    createInvoice: (params: { amount: number; description: string; payload?: string }) =>
-      createInvoice(params.amount, params.description, params.payload),
+    createInvoice: (params: { amount: number; description: string; payload?: string; paid_btn_name?: string; paid_btn_url?: string }) =>
+      createInvoice(params.amount, params.description, params.payload, params.paid_btn_name, params.paid_btn_url),
   }
 }
 
-export async function createInvoice(amount: number, description: string, payload?: string) {
+export async function createInvoice(
+  amount: number,
+  description: string,
+  payload?: string,
+  paid_btn_name?: string,
+  paid_btn_url?: string,
+) {
   const settings = await getSettings()
 
   const allowedAssets = settings.cryptoBotAllowedAssets
@@ -71,6 +77,9 @@ export async function createInvoice(amount: number, description: string, payload
     description: String(description || "Top-up"),
     payload: payload,
   }
+
+  if (paid_btn_name) params.paid_btn_name = paid_btn_name
+  if (paid_btn_url) params.paid_btn_url = paid_btn_url
 
   if (allowedAssets) {
     const assets = allowedAssets

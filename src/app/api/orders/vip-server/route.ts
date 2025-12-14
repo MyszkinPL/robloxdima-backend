@@ -14,9 +14,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 })
     }
 
-    const sessionUser = await getSessionUser()
-    if (!sessionUser) {
-      return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 })
+    const botToken = req.headers.get("x-bot-token")
+    const telegramId = req.headers.get("x-telegram-id")
+
+    let userId: string | null = null
+
+    if (botToken && telegramId) {
+      const settings = await getSettings()
+      if (!settings.telegramBotToken || settings.telegramBotToken !== botToken) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+      }
+      userId = String(telegramId)
+    } else {
+      const sessionUser = await getSessionUser()
+      if (!sessionUser) {
+        return NextResponse.json({ error: "Необходима авторизация" }, { status: 401 })
+      }
+      userId = sessionUser.id
     }
 
     const settings = await getSettings()
@@ -27,7 +41,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const user = await getUser(sessionUser.id)
+    const user = await getUser(userId)
     if (user?.isBanned) {
       return NextResponse.json(
         { error: "Ваш аккаунт заблокирован. Обратитесь в поддержку." },
@@ -88,7 +102,7 @@ export async function POST(req: NextRequest) {
 
     const updateResult = await prisma.user.updateMany({
       where: {
-        id: sessionUser.id,
+        id: userId,
         balance: { gte: price },
       },
       data: {
@@ -111,7 +125,7 @@ export async function POST(req: NextRequest) {
 
       const newOrder: Order = {
         id: orderId,
-        userId: sessionUser.id,
+        userId: userId,
         username: robloxUsername,
         type: "vip",
         amount,
@@ -143,7 +157,7 @@ export async function POST(req: NextRequest) {
 
       await refundOrder(orderId, {
         source: "order_create",
-        initiatorUserId: sessionUser.id,
+        initiatorUserId: userId,
         externalError: errorMessage,
       })
 

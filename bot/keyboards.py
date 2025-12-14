@@ -60,7 +60,26 @@ def stock_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="🔄 Обновить", callback_data="menu:stock_info"),
       ],
       [
+        InlineKeyboardButton(text="🛒 Купить робуксы", callback_data="menu:order"),
+      ],
+      [
         InlineKeyboardButton(text="⬅️ Назад", callback_data="menu:back"),
+      ],
+    ]
+  )
+
+
+def order_type_keyboard() -> InlineKeyboardMarkup:
+  return InlineKeyboardMarkup(
+    inline_keyboard=[
+      [
+        InlineKeyboardButton(text="🎫 Gamepass (Трансфер)", callback_data="order:type:gamepass"),
+      ],
+      [
+        InlineKeyboardButton(text="🖥 VIP Server", callback_data="order:type:vip_server"),
+      ],
+      [
+        InlineKeyboardButton(text="⬅️ Отмена", callback_data="flow:cancel"),
       ],
     ]
   )
@@ -95,7 +114,7 @@ def topup_confirm_keyboard(pay_url: str) -> InlineKeyboardMarkup:
   return InlineKeyboardMarkup(
     inline_keyboard=[
       [InlineKeyboardButton(text="💸 Оплатить через Crypto Bot", url=pay_url)],
-      [InlineKeyboardButton(text="🔄 Проверить оплату", callback_data="menu:balance")],
+      [InlineKeyboardButton(text="⬅️ Отмена", callback_data="flow:cancel")],
     ]
   )
 
@@ -165,10 +184,10 @@ def admin_bybit_keyboard() -> InlineKeyboardMarkup:
   return InlineKeyboardMarkup(
     inline_keyboard=[
       [
-        InlineKeyboardButton(text="Проверить баланс", callback_data="admin:bybit:balance"),
+        InlineKeyboardButton(text="💰 Проверить баланс", callback_data="admin:bybit:balance"),
       ],
       [
-        InlineKeyboardButton(text="Синхронизация депозитов", callback_data="admin:bybit:sync"),
+        InlineKeyboardButton(text="🔄 Синхронизация", callback_data="admin:bybit:sync"),
       ],
       [
         InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"),
@@ -181,10 +200,10 @@ def admin_rbx_keyboard() -> InlineKeyboardMarkup:
   return InlineKeyboardMarkup(
     inline_keyboard=[
       [
-        InlineKeyboardButton(text="Баланс аккаунта", callback_data="admin:rbx:balance"),
+        InlineKeyboardButton(text="💰 Баланс аккаунта", callback_data="admin:rbx:balance"),
       ],
       [
-        InlineKeyboardButton(text="Наличие стока", callback_data="admin:rbx:stock"),
+        InlineKeyboardButton(text="📦 Наличие стока", callback_data="admin:rbx:stock"),
       ],
       [
         InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"),
@@ -266,10 +285,10 @@ def admin_crypto_keyboard() -> InlineKeyboardMarkup:
   return InlineKeyboardMarkup(
     inline_keyboard=[
       [
-        InlineKeyboardButton(text="Проверить связку", callback_data="admin:crypto:check"),
+        InlineKeyboardButton(text="🔄 Проверить связку", callback_data="admin:crypto:check"),
       ],
       [
-        InlineKeyboardButton(text="Курс RUB→USDT", callback_data="admin:crypto:rate"),
+        InlineKeyboardButton(text="💱 Курс RUB→USDT", callback_data="admin:crypto:rate"),
       ],
       [
         InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"),

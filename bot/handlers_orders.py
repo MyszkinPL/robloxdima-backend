@@ -5,13 +5,15 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 import httpx
+import math
 
 from .backend_api import BackendApiClient
 from .keyboards import (
     main_menu_keyboard, 
     flow_cancel_keyboard, 
     order_amount_keyboard,
-    order_details_keyboard
+    order_details_keyboard,
+    order_type_keyboard
 )
 from .stickers import STICKERS
 from .utils import create_pagination_keyboard
@@ -22,6 +24,7 @@ router = Router()
 
 class OrderStates(StatesGroup):
   waiting_username = State()
+  waiting_type = State()
   waiting_amount = State()
   waiting_place_id = State()
 
@@ -35,7 +38,7 @@ async def handle_order_start(callback: CallbackQuery, state: FSMContext, api: Ba
     orders = await api.get_my_orders(user_id)
     active = [o for o in orders if o.get("status") in ["pending", "processing"]]
     if len(active) >= 3:
-      await callback.answer("У вас уже есть 3 активных заказа. Дождитесь их завершения.", show_alert=True)
+      await callback.answer("⚠️ У вас уже есть 3 активных заказа. Дождитесь их завершения.", show_alert=True)
       return
   except Exception:
     pass
@@ -50,9 +53,13 @@ async def handle_order_start(callback: CallbackQuery, state: FSMContext, api: Ba
   except:
     pass
 
-  text = "<blockquote>Введите ваш ник в Roblox:</blockquote>"
+  text = (
+      "👤 <b>Введите ваш ник в Roblox:</b>\n"
+      "<blockquote>Пример: RobloxUser123</blockquote>"
+  )
+  
   if rate > 0:
-      text = f"💱 <b>Курс:</b> 1 R$ = {rate} ₽\n\n" + text
+      text = f"💱 <b>Текущий курс:</b> 1 R$ = {rate} ₽\n\n" + text
 
   await callback.message.edit_text(
     text,
@@ -66,15 +73,16 @@ async def handle_order_create_with_amount(callback: CallbackQuery, state: FSMCon
   try:
     amount = int(callback.data.split(":")[-1])
   except ValueError:
-    await callback.answer("Ошибка суммы.")
+    await callback.answer("⚠️ Ошибка суммы.")
     return
 
   await state.update_data(amount=amount)
   await state.set_state(OrderStates.waiting_username)
   
   await callback.message.edit_text(
-    f"✅ Выбрана сумма: {amount} R$\n\n"
-    "<blockquote>Введите ваш ник в Roblox:</blockquote>",
+    f"✅ <b>Выбрана сумма:</b> {amount} R$\n\n"
+    "👤 <b>Введите ваш ник в Roblox:</b>\n"
+    "<blockquote>Пример: RobloxUser123</blockquote>",
     reply_markup=flow_cancel_keyboard(),
   )
   await callback.answer()
@@ -84,25 +92,41 @@ async def handle_order_create_with_amount(callback: CallbackQuery, state: FSMCon
 async def handle_order_username(message: Message, state: FSMContext, api: BackendApiClient) -> None:
   username = (message.text or "").strip()
   if len(username) < 3 or len(username) > 50:
-    await message.answer("Ник должен быть от 3 до 50 символов. Попробуйте ещё раз.")
+    await message.answer("⚠️ <b>Ошибка:</b> Ник должен быть от 3 до 50 символов. Попробуйте ещё раз.")
     return
   await state.update_data(username=username)
   
-  data = await state.get_data()
-  if data.get("amount"):
-    await state.set_state(OrderStates.waiting_place_id)
-    await message.answer(
-        "<blockquote>Введите ID плейса (Place ID):</blockquote>\n"
-        "Его можно найти в ссылке на ваш плейс, например: .../games/<b>123456</b>/...",
-        reply_markup=flow_cancel_keyboard()
-    )
-  else:
-    await state.set_state(OrderStates.waiting_amount)
-    await message.answer(
-        f"✅ Ник: {username}\n\n"
-        "Выберите сумму робуксов:",
-        reply_markup=order_amount_keyboard()
-    )
+  await state.set_state(OrderStates.waiting_type)
+  await message.answer(
+      f"✅ <b>Ник:</b> {username}\n\n"
+      "👇 <b>Выберите способ доставки:</b>",
+      reply_markup=order_type_keyboard()
+  )
+
+
+@router.callback_query(F.data.startswith("order:type:"))
+async def handle_order_type_selection(callback: CallbackQuery, state: FSMContext) -> None:
+    type_ = callback.data.split(":")[-1]
+    await state.update_data(order_type=type_)
+    
+    data = await state.get_data()
+    if data.get("amount"):
+         await state.set_state(OrderStates.waiting_place_id)
+         await callback.message.edit_text(
+            f"✅ <b>Способ:</b> {'Gamepass' if type_ == 'gamepass' else 'VIP Server'}\n"
+            f"✅ <b>Сумма:</b> {data.get('amount')} R$\n\n"
+            "🎮 <b>Введите ID плейса (Place ID):</b>\n"
+            "<blockquote>Его можно найти в ссылке на ваш плейс, например:\n.../games/<b>123456</b>/...</blockquote>",
+            reply_markup=flow_cancel_keyboard()
+         )
+    else:
+         await state.set_state(OrderStates.waiting_amount)
+         await callback.message.edit_text(
+            f"✅ <b>Способ:</b> {'Gamepass' if type_ == 'gamepass' else 'VIP Server'}\n\n"
+            "👇 <b>Выберите сумму робуксов:</b>",
+            reply_markup=order_amount_keyboard()
+         )
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("order:amount:"))
@@ -110,16 +134,16 @@ async def handle_order_amount_selection(callback: CallbackQuery, state: FSMConte
     try:
         amount = int(callback.data.split(":")[-1])
     except ValueError:
-        await callback.answer("Ошибка")
+        await callback.answer("⚠️ Ошибка")
         return
     
     await state.update_data(amount=amount)
     await state.set_state(OrderStates.waiting_place_id)
     
     await callback.message.edit_text(
-        f"✅ Сумма: {amount} R$\n\n"
-        "<blockquote>Введите ID плейса (Place ID):</blockquote>\n"
-        "Его можно найти в ссылке на ваш плейс, например: .../games/<b>123456</b>/...",
+        f"✅ <b>Сумма:</b> {amount} R$\n\n"
+        "🎮 <b>Введите ID плейса (Place ID):</b>\n"
+        "<blockquote>Его можно найти в ссылке на ваш плейс, например:\n.../games/<b>123456</b>/...</blockquote>",
         reply_markup=flow_cancel_keyboard()
     )
     await callback.answer()
@@ -129,7 +153,7 @@ async def handle_order_amount_selection(callback: CallbackQuery, state: FSMConte
 async def handle_place_id(message: Message, state: FSMContext, api: BackendApiClient) -> None:
     place_id = (message.text or "").strip()
     if not place_id.isdigit():
-        await message.answer("Place ID должен состоять только из цифр.")
+        await message.answer("⚠️ Place ID должен состоять только из цифр.")
         return
         
     await state.update_data(place_id=place_id)
@@ -137,6 +161,7 @@ async def handle_place_id(message: Message, state: FSMContext, api: BackendApiCl
     data = await state.get_data()
     amount = data.get("amount", 0)
     username = data.get("username", "")
+    order_type = data.get("order_type", "gamepass")
     
     rate = 0
     try:
@@ -146,13 +171,18 @@ async def handle_place_id(message: Message, state: FSMContext, api: BackendApiCl
         pass
         
     price = round(amount * rate, 2)
+    amount_to_receive = math.floor(amount * 0.7)
+    type_text = "Gamepass" if order_type == "gamepass" else "VIP Server"
     
     await message.answer(
-        f"📋 <b>Подтверждение заказа:</b>\n\n"
+        f"📋 <b>Подтверждение заказа</b>\n\n"
         f"👤 <b>Ник:</b> {username}\n"
-        f"💰 <b>Сумма:</b> {amount} R$\n"
+        f"📦 <b>Способ:</b> {type_text}\n"
+        f"💰 <b>Вы покупаете:</b> {amount} R$\n"
+        f"📥 <b>Получите на счет:</b> {amount_to_receive} R$\n"
         f"🎮 <b>Place ID:</b> {place_id}\n"
         f"💵 <b>К оплате:</b> {price} ₽\n\n"
+        f"<blockquote>⚠️ <b>Внимание:</b> Roblox забирает 30% комиссии.\nЦену геймпасса/сервера нужно ставить <b>{amount} R$</b>.</blockquote>\n\n"
         "Всё верно?",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="✅ Оплатить с баланса", callback_data="order:confirm")],
@@ -167,39 +197,41 @@ async def handle_order_confirm(callback: CallbackQuery, state: FSMContext, api: 
     username = data.get("username")
     amount = data.get("amount")
     place_id = data.get("place_id")
+    order_type = data.get("order_type", "gamepass")
     
     if not username or not amount or not place_id:
-        await callback.answer("Ошибка данных. Начните заново.")
+        await callback.answer("⚠️ Ошибка данных. Начните заново.")
         await state.clear()
         return
         
-    await callback.message.edit_text("⏳ Создаем заказ...")
+    await callback.message.edit_text("⏳ <b>Создаем заказ...</b>")
     
     try:
         res = await api.create_order(
             telegram_id=callback.from_user.id,
             username=username,
             amount=amount,
-            place_id=place_id
+            place_id=place_id,
+            order_type=order_type
         )
         
         if res.get("order"):
              order = res.get("order")
              await callback.message.edit_text(
                  f"✅ <b>Заказ #{order.get('id')[-8:]} создан!</b>\n\n"
-                 f"Статус: {order.get('status')}\n"
-                 "Ожидайте выполнения.",
+                 f"📦 <b>Статус:</b> {order.get('status')}\n\n"
+                 "<blockquote>Ожидайте выполнения. Вы получите уведомление при изменении статуса.</blockquote>",
                  reply_markup=main_menu_keyboard()
              )
         else:
              await callback.message.edit_text(
-                 f"❌ Ошибка: {res.get('error', 'Неизвестная ошибка')}",
+                 f"❌ <b>Ошибка:</b>\n{res.get('error', 'Неизвестная ошибка')}",
                  reply_markup=main_menu_keyboard()
              )
              
     except Exception as e:
         await callback.message.edit_text(
-            f"❌ Не удалось создать заказ: {str(e)}",
+            f"❌ <b>Не удалось создать заказ:</b>\n{str(e)}",
             reply_markup=main_menu_keyboard()
         )
         
@@ -221,9 +253,11 @@ async def handle_my_orders(callback: CallbackQuery, api: BackendApiClient) -> No
 
     try:
         data = await api.get_my_orders(callback.from_user.id)
-        orders = data.get("orders") or []
+        orders = data.get("orders")
+        if not isinstance(orders, list):
+            orders = []
     except Exception:
-        await callback.answer("Не удалось загрузить заказы.", show_alert=True)
+        await callback.answer("⚠️ Не удалось загрузить заказы.", show_alert=True)
         return
 
     def format_button(o):
@@ -258,9 +292,9 @@ async def handle_my_orders(callback: CallbackQuery, api: BackendApiClient) -> No
     )
     
     if not orders:
-        text_content = "📭 История заказов пуста."
+        text_content = "📭 <b>История заказов пуста</b>"
     else:
-        text_content = f"📦 <b>Ваши заказы (стр. {page}):</b>\nВыберите заказ для подробностей."
+        text_content = f"📦 <b>Ваши заказы (стр. {page})</b>\n\n👇 Выберите заказ для подробностей:"
 
     await callback.message.edit_text(text_content, reply_markup=keyboard)
     await callback.answer()
@@ -272,14 +306,16 @@ async def handle_order_details(callback: CallbackQuery, api: BackendApiClient) -
     
     try:
         data = await api.get_my_orders(callback.from_user.id)
-        orders = data.get("orders") or []
+        orders = data.get("orders")
+        if not isinstance(orders, list):
+            orders = []
         order = next((o for o in orders if o["id"] == order_id), None)
     except Exception:
-        await callback.answer("Ошибка загрузки.", show_alert=True)
+        await callback.answer("⚠️ Ошибка загрузки.", show_alert=True)
         return
 
     if not order:
-        await callback.answer("Заказ не найден.", show_alert=True)
+        await callback.answer("⚠️ Заказ не найден.", show_alert=True)
         return
 
     status = order.get("status")
@@ -316,23 +352,24 @@ async def handle_order_details(callback: CallbackQuery, api: BackendApiClient) -
 async def handle_order_cancel(callback: CallbackQuery, api: BackendApiClient) -> None:
     order_id = callback.data.split(":")[-1]
     
-    await callback.message.edit_text("⏳ Отменяем заказ...")
+    await callback.message.edit_text("⏳ <b>Отменяем заказ...</b>")
     
     try:
         res = await api.cancel_order(callback.from_user.id, order_id)
         if res.get("success"):
             await callback.message.edit_text(
-                "✅ Заказ успешно отменен. Средства возвращены на баланс.",
+                "✅ <b>Заказ успешно отменен</b>\n\n"
+                "Средства возвращены на ваш баланс.",
                 reply_markup=main_menu_keyboard()
             )
         else:
              await callback.message.edit_text(
-                f"❌ Ошибка отмены: {res.get('error')}",
+                f"❌ <b>Ошибка отмены:</b>\n{res.get('error')}",
                 reply_markup=main_menu_keyboard()
             )
             
     except Exception as e:
-        await callback.message.edit_text(f"❌ Произошла ошибка: {e}")
+        await callback.message.edit_text(f"❌ <b>Произошла ошибка:</b>\n{e}")
         
     await callback.answer()
 
@@ -343,14 +380,16 @@ async def handle_order_repeat(callback: CallbackQuery, state: FSMContext, api: B
     
     try:
         data = await api.get_my_orders(callback.from_user.id)
-        orders = data.get("orders") or []
+        orders = data.get("orders")
+        if not isinstance(orders, list):
+            orders = []
         order = next((o for o in orders if o["id"] == order_id), None)
     except Exception:
-        await callback.answer("Ошибка загрузки.", show_alert=True)
+        await callback.answer("⚠️ Ошибка загрузки.", show_alert=True)
         return
         
     if not order:
-        await callback.answer("Заказ не найден.", show_alert=True)
+        await callback.answer("⚠️ Заказ не найден.", show_alert=True)
         return
 
     amount = order.get("amount")
@@ -360,8 +399,9 @@ async def handle_order_repeat(callback: CallbackQuery, state: FSMContext, api: B
     await state.set_state(OrderStates.waiting_username)
     
     await callback.message.edit_text(
-        f"✅ Выбрана сумма: {amount} R$ (повтор)\n\n"
-        "<blockquote>Введите ваш ник в Roblox:</blockquote>",
+        f"✅ <b>Выбрана сумма:</b> {amount} R$ (повтор)\n\n"
+        "👤 <b>Введите ваш ник в Roblox:</b>\n"
+        "<blockquote>Пример: RobloxUser123</blockquote>",
         reply_markup=flow_cancel_keyboard(),
     )
     await callback.answer()
@@ -371,24 +411,25 @@ async def handle_order_repeat(callback: CallbackQuery, state: FSMContext, api: B
 async def handle_order_resend(callback: CallbackQuery, api: BackendApiClient) -> None:
     order_id = callback.data.split(":")[-1]
     
-    await callback.message.edit_text("⏳ Отправляем запрос на повторную отправку...")
+    await callback.message.edit_text("⏳ <b>Отправляем запрос на повторную проверку...</b>")
     
     try:
         res = await api.resend_order(callback.from_user.id, order_id)
         if res.get("success"):
             await callback.message.edit_text(
-                "✅ Запрос отправлен! Ожидайте обновления статуса.",
+                "✅ <b>Запрос отправлен!</b>\n\n"
+                "Ожидайте обновления статуса заказа.",
                 reply_markup=main_menu_keyboard()
             )
         else:
             await callback.message.edit_text(
-                f"❌ Ошибка отправки: {res.get('error', 'Неизвестная ошибка')}",
+                f"❌ <b>Ошибка отправки:</b>\n{res.get('error', 'Неизвестная ошибка')}",
                 reply_markup=main_menu_keyboard()
             )
             
     except Exception as e:
         await callback.message.edit_text(
-             f"❌ Произошла ошибка: {str(e)}",
+             f"❌ <b>Произошла ошибка:</b>\n{str(e)}",
              reply_markup=main_menu_keyboard()
         )
         

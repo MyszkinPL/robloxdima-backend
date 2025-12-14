@@ -21,7 +21,8 @@ async def handle_calculator_start(callback: CallbackQuery, state: FSMContext) ->
     await state.set_state(CalculatorStates.waiting_amount)
     await callback.message.edit_text(
         "🧮 <b>Калькулятор стоимости</b>\n\n"
-        "<blockquote>Введите количество робуксов, которое хотите купить (например: 1000).</blockquote>",
+        "👇 <b>Введите количество робуксов:</b>\n"
+        "<blockquote>Например: 1000</blockquote>",
         reply_markup=flow_cancel_keyboard(),
     )
     await callback.answer()
@@ -55,16 +56,19 @@ async def handle_calculator_calculate(
         return
 
     price = round(amount * rate, 2)
+    amount_to_receive = int(amount * 0.7)
     
     # Check if stock is sufficient
     stock_status = "✅ В наличии" if available >= amount else f"⚠️ Мало на складе (всего {available})"
 
     result_text = (
         f"🧮 <b>Расчет стоимости</b>\n\n"
-        f"💎 <b>Количество:</b> <code>{amount} R$</code>\n"
+        f"💎 <b>Вы покупаете:</b> <code>{amount} R$</code>\n"
+        f"📥 <b>Получите на счет:</b> <code>{amount_to_receive} R$</code>\n"
         f"💰 <b>Цена:</b> <code>{price} ₽</code>\n"
         f"📦 <b>Статус:</b> {stock_status}\n"
-        f"📊 <b>Курс:</b> {round(rate * 100, 2)} ₽ за 100 R$"
+        f"📊 <b>Курс:</b> {round(rate * 100, 2)} ₽ за 100 R$\n\n"
+        f"<blockquote>ℹ️ Учтена комиссия Roblox 30%</blockquote>"
     )
 
     # Button to proceed to order with this amount

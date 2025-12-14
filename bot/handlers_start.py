@@ -73,7 +73,10 @@ async def handle_start(message: Message, command: CommandObject, api: BackendApi
           pass
 
   await message.answer(
-    "<b>Привет! Это бот магазина робуксов.</b>\n\n<blockquote>Выберите действие в меню ниже.</blockquote>",
+    "<b>👋 Добро пожаловать в RobuxTrade!</b>\n\n"
+    "💎 Здесь вы можете купить робуксы по самому выгодному курсу.\n"
+    "🚀 Быстрая доставка и гарантия качества.\n\n"
+    "<blockquote>⬇️ Используйте меню ниже для навигации:</blockquote>",
     reply_markup=main_menu_keyboard(is_admin=is_admin),
   )
 
@@ -85,7 +88,8 @@ async def handle_back(callback: CallbackQuery, api: BackendApiClient) -> None:
     return
   is_admin = await _is_admin(api, callback.from_user.id)
   await callback.message.edit_text(
-    "<b>Главное меню</b>",
+    "<b>🏠 Главное меню</b>\n\n"
+    "<blockquote>⬇️ Выберите нужный раздел:</blockquote>",
     reply_markup=main_menu_keyboard(is_admin=is_admin),
   )
   await callback.answer()
@@ -129,7 +133,7 @@ async def handle_help(callback: CallbackQuery, api: BackendApiClient) -> None:
     faq_items = []
   lines = []
   if faq_items:
-    lines.append("<b>Ответы на частые вопросы:</b>")
+    lines.append("<b>ℹ️ Часто задаваемые вопросы:</b>")
     for item in faq_items:
       question = (item.get("question") or "").strip()
       answer = (item.get("answer") or "").strip()
@@ -139,7 +143,8 @@ async def handle_help(callback: CallbackQuery, api: BackendApiClient) -> None:
       lines.append(f"<b>❓ {question}</b>")
       lines.append(f"<blockquote>{answer}</blockquote>")
   else:
-    lines.append("FAQ пока не заполнен. Напишите в поддержку, если есть вопросы.")
+    lines.append("<b>ℹ️ FAQ пока пуст</b>")
+    lines.append("<blockquote>Если у вас есть вопросы, обратитесь в поддержку.</blockquote>")
   support_link = settings.get("supportLink") or ""
   text = "\n".join(lines)
   await callback.message.edit_text(
@@ -167,11 +172,12 @@ async def handle_admin_command(message: Message, api: BackendApiClient) -> None:
   clients_count = summary_text.get("clientsCount", 0)
   sales_this_month = summary_text.get("salesThisMonth", 0)
   text = (
-    "<b>Админ-панель</b>\n\n"
-    f"<blockquote>Заказов всего: {orders_count}</blockquote>\n"
-    f"<blockquote>Клиентов всего: {clients_count}</blockquote>\n"
-    f"<blockquote>Заказов в этом месяце: {sales_this_month}</blockquote>\n\n"
-    "Выберите раздел:"
+    "<b>👑 Панель администратора</b>\n\n"
+    "📊 <b>Общая статистика:</b>\n"
+    f"<blockquote>📦 Заказов всего: <b>{orders_count}</b></blockquote>\n"
+    f"<blockquote>👥 Клиентов всего: <b>{clients_count}</b></blockquote>\n"
+    f"<blockquote>📅 Продаж в этом месяце: <b>{sales_this_month}</b></blockquote>\n\n"
+    "👇 <b>Выберите раздел:</b>"
   )
   await message.answer(text, reply_markup=admin_menu_keyboard())
 
@@ -195,11 +201,12 @@ async def handle_admin_menu(callback: CallbackQuery, api: BackendApiClient) -> N
   clients_count = summary_text.get("clientsCount", 0)
   sales_this_month = summary_text.get("salesThisMonth", 0)
   text = (
-    "<b>Админ-панель</b>\n\n"
-    f"<blockquote>Заказов всего: {orders_count}</blockquote>\n"
-    f"<blockquote>Клиентов всего: {clients_count}</blockquote>\n"
-    f"<blockquote>Заказов в этом месяце: {sales_this_month}</blockquote>\n\n"
-    "Выберите раздел:"
+    "<b>👑 Панель администратора</b>\n\n"
+    "📊 <b>Общая статистика:</b>\n"
+    f"<blockquote>📦 Заказов всего: <b>{orders_count}</b></blockquote>\n"
+    f"<blockquote>👥 Клиентов всего: <b>{clients_count}</b></blockquote>\n"
+    f"<blockquote>📅 Продаж в этом месяце: <b>{sales_this_month}</b></blockquote>\n\n"
+    "👇 <b>Выберите раздел:</b>"
   )
   await callback.message.edit_text(text, reply_markup=admin_menu_keyboard())
   await callback.answer()
@@ -225,11 +232,12 @@ async def handle_admin_menu_back(callback: CallbackQuery, state: FSMContext, api
   clients_count = summary_text.get("clientsCount", 0)
   sales_this_month = summary_text.get("salesThisMonth", 0)
   text = (
-    "Админ-панель\n\n"
-    f"Заказов всего: {orders_count}\n"
-    f"Клиентов всего: {clients_count}\n"
-    f"Заказов в этом месяце: {sales_this_month}\n\n"
-    "Выберите раздел:"
+    "<b>👑 Панель администратора</b>\n\n"
+    "📊 <b>Общая статистика:</b>\n"
+    f"<blockquote>📦 Заказов всего: <b>{orders_count}</b></blockquote>\n"
+    f"<blockquote>👥 Клиентов всего: <b>{clients_count}</b></blockquote>\n"
+    f"<blockquote>📅 Продаж в этом месяце: <b>{sales_this_month}</b></blockquote>\n\n"
+    "👇 <b>Выберите раздел:</b>"
   )
   await callback.message.edit_text(text, reply_markup=admin_menu_keyboard())
   await callback.answer()
@@ -252,16 +260,16 @@ async def handle_admin_orders(callback: CallbackQuery, api: BackendApiClient) ->
   orders = data.get("orders") or []
   summary = data.get("summary") or {}
   lines = [
-    "Статистика заказов:",
-    f"Всего заказов: {summary.get('ordersCount', 0)}",
-    f"Уникальных клиентов: {summary.get('clientsCount', 0)}",
-    f"Заказов в этом месяце: {summary.get('salesThisMonth', 0)}",
+    "<b>📊 Статистика заказов:</b>",
+    f"<blockquote>📦 Всего заказов: <b>{summary.get('ordersCount', 0)}</b></blockquote>",
+    f"<blockquote>👥 Уникальных клиентов: <b>{summary.get('clientsCount', 0)}</b></blockquote>",
+    f"<blockquote>📅 Продаж в этом месяце: <b>{summary.get('salesThisMonth', 0)}</b></blockquote>",
     "",
-    "Последние заказы:",
+    "<b>📝 Последние заказы:</b>",
   ]
   for order in orders[-5:][::-1]:
     lines.append(
-      f"{order.get('id')} — {order.get('username')} — {order.get('amount')}₽ — {order.get('status')}",
+      f"🔹 <b>#{order.get('id')}</b> | {order.get('username')} | {order.get('amount')}₽ | {order.get('status')}",
     )
   text = "\n".join(lines)
   await callback.message.edit_text(text, reply_markup=admin_menu_keyboard())
@@ -284,12 +292,12 @@ async def handle_admin_payments(callback: CallbackQuery, api: BackendApiClient) 
     return
   payments = data.get("payments") or []
   if not payments:
-    text = "Платежи не найдены."
+    text = "<b>🚫 Платежи не найдены.</b>"
   else:
-    lines = ["Последние платежи:"]
+    lines = ["<b>💸 Последние платежи:</b>"]
     for p in payments[-10:][::-1]:
       lines.append(
-        f"{p.get('id')} — {p.get('amount')} {p.get('currency')} — {p.get('status')} — {p.get('method')}",
+        f"🔹 <b>#{p.get('id')}</b> | {p.get('amount')} {p.get('currency')} | {p.get('status')} | {p.get('method')}",
       )
     text = "\n".join(lines)
   await callback.message.edit_text(text, reply_markup=admin_menu_keyboard())
@@ -306,8 +314,9 @@ async def handle_admin_users(callback: CallbackQuery, state: FSMContext, api: Ba
     return
   await state.set_state(AdminStates.waiting_user_search)
   await callback.message.edit_text(
-    "Введите ID или юзернейм пользователя для поиска.\n\n"
-    "Отправьте пустое сообщение, чтобы показать первых пользователей.",
+    "<b>🔍 Поиск пользователей</b>\n\n"
+    "<blockquote>Введите ID или юзернейм пользователя для поиска.</blockquote>\n\n"
+    "<i>Отправьте пустое сообщение, чтобы показать первых пользователей.</i>",
     reply_markup=admin_flow_cancel_keyboard(),
   )
   await callback.answer()
@@ -331,16 +340,16 @@ async def handle_admin_users_query(message: Message, state: FSMContext, api: Bac
     return
   users = data.get("users") or []
   if not users:
-    text = "Пользователи не найдены."
+    text = "<b>🚫 Пользователи не найдены.</b>"
   else:
     if search:
-      header = f"Результаты поиска по «{query}»:"
+      header = f"<b>🔍 Результаты поиска по «{query}»:</b>"
     else:
-      header = "Первые пользователи:"
+      header = "<b>👥 Первые пользователи:</b>"
     lines = [header]
     for u in users[:10]:
       lines.append(
-        f"{u.get('id')} — {u.get('username')} — {u.get('role')} — {u.get('status')} — баланс {u.get('balance')}₽",
+        f"🔹 <b>#{u.get('id')}</b> | @{u.get('username')} | {u.get('role')} | {u.get('status')} | 💰 {u.get('balance')}₽",
       )
     text = "\n".join(lines)
   await message.answer(text, reply_markup=admin_menu_keyboard())
@@ -364,16 +373,16 @@ async def handle_admin_logs(callback: CallbackQuery, api: BackendApiClient) -> N
   logs = data.get("logs") or []
   summary = data.get("summary") or {}
   lines = [
-    "Логи:",
-    f"Всего записей: {summary.get('total', 0)}",
-    f"Возвратов: {summary.get('refundCount', 0)}",
-    f"Банов/разбанов: {summary.get('banCount', 0)}",
+    "<b>📜 Логи действий:</b>",
+    f"<blockquote>📝 Всего записей: <b>{summary.get('total', 0)}</b></blockquote>",
+    f"<blockquote>↩️ Возвратов: <b>{summary.get('refundCount', 0)}</b></blockquote>",
+    f"<blockquote>🚫 Банов/разбанов: <b>{summary.get('banCount', 0)}</b></blockquote>",
     "",
-    "Последние события:",
+    "<b>🕒 Последние события:</b>",
   ]
   for log in logs[-10:][::-1]:
     lines.append(
-      f"{log.get('createdAt')} — {log.get('userId')} — {log.get('action')}",
+      f"🔹 <b>{log.get('createdAt')}</b> | {log.get('userId')} | {log.get('action')}",
     )
   text = "\n".join(lines)
   await callback.message.edit_text(text, reply_markup=admin_menu_keyboard())
@@ -407,25 +416,25 @@ async def _render_admin_settings(callback: CallbackQuery, api: BackendApiClient)
   bybit_testnet = settings.get("bybitTestnet")
   bybit_store_uid = settings.get("bybitStoreUid") or ""
   lines = [
-    "Настройки магазина:",
-    f"Курс: {rate} ₽ за 1 Robux" if rate is not None else "Курс: не задан",
-    f"Техработы: {'включены' if maintenance else 'выключены'}",
+    "<b>⚙️ Настройки магазина:</b>",
+    f"<blockquote>💵 Курс: <b>{rate} ₽</b> за 1 Robux</blockquote>" if rate is not None else "<blockquote>💵 Курс: <b>не задан</b></blockquote>",
+    f"<blockquote>🔧 Техработы: <b>{'включены' if maintenance else 'выключены'}</b></blockquote>",
     "",
-    "Коммуникации:",
-    f"Telegram бот: @{telegram_bot_username}" if telegram_bot_username else "Telegram бот: не задан",
-    f"Ссылка поддержки: {support_link or '-'}",
+    "<b>📡 Коммуникации:</b>",
+    f"<blockquote>🤖 Telegram бот: <b>@{telegram_bot_username}</b></blockquote>" if telegram_bot_username else "<blockquote>🤖 Telegram бот: <b>не задан</b></blockquote>",
+    f"<blockquote>🆘 Поддержка: {support_link or '<b>-</b>'}</blockquote>",
     "",
-    "Токены:",
-    f"CryptoBot токен: {'установлен' if crypto_bot_token else 'не задан'}",
-    f"CryptoBot тестнет: {'включен' if crypto_bot_testnet else 'выключен'}",
-    f"CryptoBot валюты: {crypto_bot_allowed_assets or '-'}",
-    f"CryptoBot фиат: {crypto_bot_fiat_currency or '-'}",
-    f"Telegram bot token: {'установлен' if telegram_bot_token else 'не задан'}",
+    "<b>🔑 Токены и ключи:</b>",
+    f"🔹 CryptoBot токен: <b>{'✅ установлен' if crypto_bot_token else '❌ не задан'}</b>",
+    f"🔹 CryptoBot тестнет: <b>{'🟢 включен' if crypto_bot_testnet else '🔴 выключен'}</b>",
+    f"🔹 CryptoBot валюты: <b>{crypto_bot_allowed_assets or '-'}</b>",
+    f"🔹 CryptoBot фиат: <b>{crypto_bot_fiat_currency or '-'}</b>",
+    f"🔹 Telegram bot token: <b>{'✅ установлен' if telegram_bot_token else '❌ не задан'}</b>",
     "",
-    "Bybit:",
-    f"API ключ: {'установлен' if bybit_api_key and bybit_api_secret else 'не задан'}",
-    f"Bybit тестнет: {'включен' if bybit_testnet else 'выключен'}",
-    f"Merchant ID: {bybit_store_uid or '-'}",
+    "<b>💹 Bybit:</b>",
+    f"🔹 API ключи: <b>{'✅ установлены' if bybit_api_key and bybit_api_secret else '❌ не заданы'}</b>",
+    f"🔹 Bybit тестнет: <b>{'🟢 включен' if bybit_testnet else '🔴 выключен'}</b>",
+    f"🔹 Merchant ID: <b>{bybit_store_uid or '-'}</b>",
   ]
   text = "\n".join(lines)
   await callback.message.edit_text(text, reply_markup=admin_settings_keyboard())
@@ -779,21 +788,21 @@ async def handle_admin_crypto_check(callback: CallbackQuery, api: BackendApiClie
     name = me.get("name") or "неизвестно"
     default_currency = me.get("currency_type") or "не задана"
     lines = [
-      "Crypto Bot подключен.",
-      f"Имя: {name}",
-      f"Валюта по умолчанию: {default_currency}",
+      "<b>✅ Crypto Bot подключен.</b>",
+      f"<blockquote>👤 Имя: <b>{name}</b></blockquote>",
+      f"<blockquote>💰 Валюта по умолчанию: <b>{default_currency}</b></blockquote>",
       "",
-      "Доступные валюты:",
+      "<b>📋 Доступные валюты:</b>",
     ]
     if not currencies:
-      lines.append("не найдены")
+      lines.append("<i>не найдены</i>")
     else:
       for c in currencies:
         ticker = c.get("ticker") or c.get("code") or "?"
         min_amount = c.get("min_amount") or c.get("min") or "?"
         is_blocked = bool(c.get("is_blocked"))
-        suffix = " (заблокирована)" if is_blocked else ""
-        lines.append(f"{ticker} — min {min_amount}{suffix}")
+        suffix = " (🔒 заблокирована)" if is_blocked else ""
+        lines.append(f"🔹 <b>{ticker}</b> — min {min_amount}{suffix}")
     text = "\n".join(lines)
   await callback.message.edit_text(text, reply_markup=admin_crypto_keyboard())
   await callback.answer()
@@ -814,10 +823,10 @@ async def handle_admin_crypto_rate(callback: CallbackQuery, api: BackendApiClien
     await callback.answer()
     return
   if not data.get("success"):
-    text = f"Ошибка: {data.get('error')}"
+    text = f"<b>🚫 Ошибка:</b> {data.get('error')}"
   else:
     rate = data.get("rate")
-    text = f"Актуальный курс RUB→USDT: {rate}"
+    text = f"<b>💱 Актуальный курс RUB→USDT:</b> <code>{rate}</code>"
   await callback.message.edit_text(text, reply_markup=admin_crypto_keyboard())
   await callback.answer()
 
@@ -866,10 +875,10 @@ async def handle_admin_rbx_balance(callback: CallbackQuery, api: BackendApiClien
     await callback.answer()
     return
   if not data.get("success"):
-    text = f"Ошибка: {data.get('error')}"
+    text = f"<b>🚫 Ошибка:</b> {data.get('error')}"
   else:
     balance = data.get("balance")
-    text = f"Текущий баланс RbxCrate: {balance} $"
+    text = f"<b>💰 Текущий баланс RbxCrate:</b> <code>{balance} $</code>"
   await callback.message.edit_text(text, reply_markup=admin_rbx_keyboard())
   await callback.answer()
 
@@ -889,12 +898,12 @@ async def handle_admin_rbx_stock(callback: CallbackQuery, api: BackendApiClient)
     await callback.answer()
     return
   if not data.get("success"):
-    text = f"Ошибка: {data.get('error')}"
+    text = f"<b>🚫 Ошибка:</b> {data.get('error')}"
   else:
     stock = data.get("stock") or []
-    lines = ["📦 <b>Сток и курс RBXCRATE:</b>\n"]
+    lines = ["<b>📦 Сток и курс RBXCRATE:</b>\n"]
     if not stock:
-      lines.append("Нет данных")
+      lines.append("<i>Нет данных</i>")
     else:
       for idx, item in enumerate(stock):
         # Пробуем получить данные по структуре DetailedStockItem
@@ -904,12 +913,12 @@ async def handle_admin_rbx_stock(callback: CallbackQuery, api: BackendApiClient)
         if rate is not None:
             # Если есть rate, выводим в новом формате
             lines.append(f"🔹 <b>Пакет #{idx + 1}</b>")
-            lines.append(f"💰 <b>Курс выкупа:</b> {rate}")
-            lines.append(f"📦 <b>Доступно:</b> {amount if amount is not None else 'н/д'} R$")
+            lines.append(f"<blockquote>💰 Курс выкупа: <b>{rate}</b></blockquote>")
+            lines.append(f"<blockquote>📦 Доступно: <b>{amount if amount is not None else 'н/д'} R$</b></blockquote>")
             if item.get("maxInstantOrder"):
-                lines.append(f"⚡ <b>Макс. мгновенный:</b> {item.get('maxInstantOrder')} R$")
+                lines.append(f"<blockquote>⚡ Макс. мгновенный: <b>{item.get('maxInstantOrder')} R$</b></blockquote>")
             if item.get("accountsCount"):
-                lines.append(f"👥 <b>Аккаунтов:</b> {item.get('accountsCount')}")
+                lines.append(f"<blockquote>👥 Аккаунтов: <b>{item.get('accountsCount')}</b></blockquote>")
             lines.append("")
         else:
             # Старый формат (фоллбек)
@@ -917,7 +926,7 @@ async def handle_admin_rbx_stock(callback: CallbackQuery, api: BackendApiClient)
             available = item.get("robuxAvailable") or item.get("available") or 0
             sold = item.get("robuxReserved") or item.get("sold") or 0
             lines.append(
-              f"{name} — доступно {available} — продано {sold}",
+              f"🔹 <b>{name}</b> | доступно {available} | продано {sold}",
             )
     text = "\n".join(lines)
   await callback.message.edit_text(text, reply_markup=admin_rbx_keyboard())
