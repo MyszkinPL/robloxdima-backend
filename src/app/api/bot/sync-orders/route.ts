@@ -3,6 +3,7 @@ import { getSettings } from "@/lib/settings"
 import { prisma } from "@/lib/db"
 import { getAuthenticatedRbxClient } from "@/lib/api-client"
 import { refundOrder } from "@/lib/db"
+import { RbxCrateNotFoundError } from "@/lib/rbxcrate/core/errors"
 
 export async function POST(req: NextRequest) {
   try {
@@ -71,10 +72,34 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (error) {
-        console.error(`Error syncing order ${order.id}:`, error)
-        // If 404, maybe it doesn't exist on RbxCrate? 
-        // If it's been 'processing' for too long (e.g. 24h), maybe fail it?
-        // For now, just log.
+        // Handle 404 (Order not found on RbxCrate)
+        if (error instanceof RbxCrateNotFoundError) {
+          const timeSinceCreation = Date.now() - order.createdAt.getTime()
+          const ONE_DAY_MS = 24 * 60 * 60 * 1000
+
+          // If order is older than 24 hours and not found on RbxCrate, mark as failed/refund
+          if (timeSinceCreation > ONE_DAY_MS) {
+             console.log(`Order ${order.id} not found on RbxCrate and > 24h old. Marking as failed.`)
+             const result = await refundOrder(order.id, {
+               source: "system",
+               externalStatus: "not_found",
+               externalError: "Order not found on RbxCrate after 24h",
+             })
+             if (result.refunded) {
+               updates.push({
+                 userId: order.userId,
+                 orderId: order.id,
+                 status: "failed",
+                 amount: order.amount,
+                 refunded: true,
+               })
+             }
+          } else {
+             console.warn(`Order ${order.id} not found on RbxCrate, but < 24h old. Skipping.`)
+          }
+        } else {
+           console.error(`Error syncing order ${order.id}:`, error)
+        }
       }
     }
 

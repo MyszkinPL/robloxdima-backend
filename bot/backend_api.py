@@ -136,6 +136,21 @@ class BackendApiClient:
     res.raise_for_status()
     return res.json()
 
+  async def resend_order(self, telegram_id: int, order_id: str) -> Dict[str, Any]:
+    res = await self._client.post(
+      "/api/rbx/orders/resend",
+      json={"orderId": order_id},
+      headers=self._headers_for_user(telegram_id),
+    )
+    if res.status_code != 200:
+       try:
+           error_data = res.json()
+           error_msg = error_data.get("error", res.text)
+       except:
+           error_msg = res.text
+       raise Exception(error_msg)
+    return res.json()
+
   async def create_bybit_pay_order(self, telegram_id: int, amount_rub: float) -> Dict[str, Any]:
     payload = {"telegramId": telegram_id, "amount": amount_rub}
     res = await self._client.post(

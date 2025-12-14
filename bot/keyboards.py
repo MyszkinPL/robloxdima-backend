@@ -106,6 +106,9 @@ def order_details_keyboard(order_id: str, status: str, support_link: str | None 
     # Actions based on status
     if status == "pending":
         rows.append([InlineKeyboardButton(text="❌ Отменить заказ", callback_data=f"order:cancel:{order_id}")])
+        rows.append([InlineKeyboardButton(text="🔄 Отправить снова", callback_data=f"order:resend:{order_id}")])
+    elif status == "processing":
+        rows.append([InlineKeyboardButton(text="🔄 Отправить снова", callback_data=f"order:resend:{order_id}")])
     elif status == "completed":
         rows.append([InlineKeyboardButton(text="🔄 Повторить заказ", callback_data=f"order:repeat:{order_id}")])
     elif status == "failed":
