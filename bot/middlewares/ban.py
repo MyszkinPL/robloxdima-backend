@@ -14,7 +14,16 @@ class BanMiddleware(BaseMiddleware):
         if not pool:
             return await handler(event, data)
         
-        user_id = event.from_user.id if event.from_user else None
+        user = None
+        if hasattr(event, "message") and event.message:
+            user = event.message.from_user
+        elif hasattr(event, "callback_query") and event.callback_query:
+            user = event.callback_query.from_user
+        elif hasattr(event, "inline_query") and event.inline_query:
+            user = event.inline_query.from_user
+            
+        user_id = user.id if user else None
+
         if not user_id:
             return await handler(event, data)
 
