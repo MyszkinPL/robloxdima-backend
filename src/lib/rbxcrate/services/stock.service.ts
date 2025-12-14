@@ -6,7 +6,7 @@ export class StockService {
 
   async getSummary(): Promise<StockResponse> {
     try {
-      return await this.http.request("/orders/stock", "GET");
+      return await this.http.request("/shared/stock", "GET");
     } catch (error) {
       console.error("RbxCrate StockService.getSummary error:", error);
       return { robuxAvailable: 0, maxRobuxAvailable: 0 };
@@ -15,20 +15,22 @@ export class StockService {
 
   async getDetailed(): Promise<DetailedStockResponse> {
     try {
-      const response = await this.http.request<any>("/orders/detailed-stock", "GET");
+      const response = await this.http.request<any>("/shared/detailed-stock", "GET");
       
+      // Handle array response directly
       if (Array.isArray(response)) {
         return response;
       }
       
-      // Handle potential wrapped responses
-      if (response && typeof response === 'object') {
-        if (Array.isArray(response.data)) return response.data;
-        if (Array.isArray(response.stock)) return response.stock;
-        if (Array.isArray(response.items)) return response.items;
+      // Handle object response with data/stock property
+      if (response && Array.isArray(response.stock)) {
+        return response.stock;
       }
 
-      console.warn("RbxCrate getDetailed returned unexpected format:", JSON.stringify(response));
+      if (response && Array.isArray(response.data)) {
+        return response.data;
+      }
+
       return [];
     } catch (error) {
       console.error("RbxCrate StockService.getDetailed error:", error);
