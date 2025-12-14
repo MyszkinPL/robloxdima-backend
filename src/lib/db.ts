@@ -23,6 +23,7 @@ export interface User {
   photoUrl?: string;
   role: 'user' | 'admin';
   balance: number;
+  referralBalance: number;
   isBanned: boolean;
   createdAt: string;
   bybitUid?: string;
@@ -60,6 +61,7 @@ function mapUser(user: PrismaUser): User {
     referrerId: extendedUser.referrerId ?? undefined,
     role: user.role as 'user' | 'admin',
     isBanned: user.isBanned,
+    referralBalance: extendedUser.referralBalance ?? 0,
     createdAt: user.createdAt.toISOString(),
   };
 }
@@ -443,6 +445,14 @@ export async function logAction(userId: string, action: string, details?: string
       details,
     }
   });
+}
+
+export async function getUserPayments(userId: string): Promise<Payment[]> {
+  const payments = await prisma.payment.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' }
+  });
+  return payments.map(mapPayment);
 }
 
 export async function getUserLogs(userId: string): Promise<Log[]> {

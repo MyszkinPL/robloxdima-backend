@@ -27,11 +27,23 @@ class OrderStates(StatesGroup):
 
 
 @router.callback_query(F.data == "menu:order")
-async def handle_order_start(callback: CallbackQuery, state: FSMContext) -> None:
+async def handle_order_start(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
   await state.clear()
   await state.set_state(OrderStates.waiting_username)
+  
+  rate = 0
+  try:
+    settings = await api.get_public_settings()
+    rate = settings.get("rate", 0)
+  except:
+    pass
+
+  text = "<blockquote>Введите ваш ник в Roblox:</blockquote>"
+  if rate > 0:
+      text = f"💱 <b>Курс:</b> 1 R$ = {rate} ₽\n\n" + text
+
   await callback.message.edit_text(
-    "<blockquote>Введите ваш ник в Roblox:</blockquote>",
+    text,
     reply_markup=flow_cancel_keyboard(),
   )
   await callback.answer()

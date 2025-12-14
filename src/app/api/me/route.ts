@@ -30,6 +30,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
+    // Get referral count since it's not in dbUser by default
+    const referralsCount = await prisma.user.count({
+        where: { referrerId: userId }
+    })
+
     // Calculate stats
     const totalOrders = await prisma.order.count({
       where: {
@@ -54,7 +59,8 @@ export async function GET(req: NextRequest) {
       user: {
         ...dbUser,
         totalOrders,
-        totalSpent
+        totalSpent,
+        _count: { referrals: referralsCount }
       } 
     })
   } catch (error) {

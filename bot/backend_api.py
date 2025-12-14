@@ -69,7 +69,7 @@ class BackendApiClient:
     res.raise_for_status()
     return res.json()
 
-  async def get_payment_status(self, telegram_id: int, payment_id: str) -> Dict[str, Any]:
+  async def get_wallet_history(self, telegram_id: int) -> Dict[str, Any]:
     res = await self._client.get(
       "/api/wallet/history",
       headers=self._headers_for_user(telegram_id),

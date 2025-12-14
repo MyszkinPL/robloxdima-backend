@@ -92,6 +92,7 @@ async def handle_history(callback: CallbackQuery, api: BackendApiClient) -> None
     
     if not payments:
         text_content = "История пополнений пуста."
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="menu:back")]])
     else:
         text_content = f"<b>Последние пополнения (стр. {page}):</b>\n" + text_content
 
