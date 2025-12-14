@@ -41,7 +41,8 @@ export class HttpClient {
     }
 
     try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      const url = endpoint.startsWith("http") ? endpoint : `${this.baseUrl}${endpoint}`;
+      const response = await fetch(url, {
         ...config,
       });
 
