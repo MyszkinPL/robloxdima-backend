@@ -52,12 +52,14 @@ export function generateSign(payload: string | Omit<RbxCrateWebhook, 'sign'>, ap
 export function isValidRbxcrateSign(webhookBody: RbxCrateWebhook, apiKey: string): boolean {
   const { sign: receivedSign, ...rest } = webhookBody;
   
-  // Best practice: Use the raw request body string from your framework if possible.
-  // If you only have the parsed object, this function attempts to reconstruct the string
-  // by sorting keys, which is a common convention but not guaranteed if the sender
-  // didn't sort them or used a specific order.
-  
-  const calculatedSign = generateSign(rest, apiKey);
+  // Try standard JSON.stringify
+  const sign1 = generateSign(rest, apiKey);
+  if (receivedSign === sign1) return true;
 
-  return receivedSign === calculatedSign;
+  // Try with escaped slashes (PHP json_encode default behavior)
+  const jsonWithEscapedSlashes = JSON.stringify(rest).replace(/\//g, '\\/');
+  const sign2 = generateSign(jsonWithEscapedSlashes, apiKey);
+  if (receivedSign === sign2) return true;
+
+  return false;
 }

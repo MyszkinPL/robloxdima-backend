@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSettings } from "@/lib/settings"
 import { getOrder, refundOrder, updateOrder } from "@/lib/db"
-import { isValidRbxcrateSign } from "@/lib/rbxcrate/utils/verify"
+import { isValidRbxcrateSign, RBXCRATE_WEBHOOK_IPS } from "@/lib/rbxcrate/utils/verify"
 import { OrderStatus, RbxCrateWebhook } from "@/lib/rbxcrate/types"
 
 async function sendTelegramNotification(
@@ -32,12 +32,22 @@ async function sendTelegramNotification(
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as RbxCrateWebhook
+    const ip = req.headers.get("x-forwarded-for") || req.ip || "unknown"
+
+    // Log incoming webhook for debugging
+    console.log(`[Webhook] Received from IP: ${ip}, Order: ${body.orderId}, Status: ${body.status}`)
+
+    // Optional: Check IP whitelist (warn only for now to avoid blocking legitimate requests behind proxies)
+    const isAllowedIp = RBXCRATE_WEBHOOK_IPS.some(allowedIp => ip.includes(allowedIp))
+    if (!isAllowedIp) {
+      console.warn(`[Webhook] Warning: Request from unauthorized IP: ${ip}`)
+    }
 
     const settings = await getSettings()
     const apiKey = settings.rbxKey
 
     if (!apiKey) {
-      console.error("RBXCrate webhook received but API key is not configured")
+      console.error("[Webhook] Error: API key is not configured")
       return NextResponse.json(
         { error: "Webhook not configured" },
         { status: 500 },
@@ -46,7 +56,8 @@ export async function POST(req: NextRequest) {
 
     const isValid = isValidRbxcrateSign(body, apiKey)
     if (!isValid) {
-      console.error("Invalid RBXCrate webhook signature for order", body.orderId)
+      console.error(`[Webhook] Error: Invalid signature for order ${body.orderId}`)
+      // We don't log the expected signature to avoid security risks, but we log that it failed.
       return NextResponse.json(
         { error: "Invalid signature" },
         { status: 400 },
