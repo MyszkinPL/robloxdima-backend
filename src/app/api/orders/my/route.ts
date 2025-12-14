@@ -24,8 +24,8 @@ export async function GET(req: NextRequest) {
       userId = user.id
     }
 
-    const orders = await getUserOrders(userId)
-    return NextResponse.json({ orders })
+    const ordersResult = await getUserOrders(userId)
+    return NextResponse.json({ orders: ordersResult.orders })
   } catch (error) {
     console.error("GET /api/orders/my error:", error)
     return NextResponse.json(
