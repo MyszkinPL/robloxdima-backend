@@ -32,7 +32,7 @@ async function sendTelegramNotification(
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as RbxCrateWebhook
-    const ip = req.headers.get("x-forwarded-for") || req.ip || "unknown"
+    const ip = req.headers.get("x-forwarded-for") || "unknown"
 
     // Log incoming webhook for debugging
     console.log(`[Webhook] Received from IP: ${ip}, Order: ${body.orderId}, Status: ${body.status}`)

@@ -447,14 +447,6 @@ export async function logAction(userId: string, action: string, details?: string
   });
 }
 
-export async function getUserPayments(userId: string): Promise<Payment[]> {
-  const payments = await prisma.payment.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' }
-  });
-  return payments.map(mapPayment);
-}
-
 export async function getUserLogs(userId: string): Promise<Log[]> {
   const logs = await prisma.log.findMany({
     where: { userId },
