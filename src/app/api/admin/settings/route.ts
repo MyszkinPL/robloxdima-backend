@@ -47,7 +47,6 @@ export async function PATCH(req: Request) {
       telegramBotToken,
       telegramBotUsername,
       isCryptoBotEnabled, 
-      isStarsEnabled,
       isPaypalychEnabled,
       paypalychShopId,
       paypalychToken,
@@ -80,7 +79,6 @@ export async function PATCH(req: Request) {
             telegramBotToken: telegramBotToken !== undefined ? telegramBotToken : undefined,
             telegramBotUsername: telegramBotUsername !== undefined ? telegramBotUsername : undefined,
             isCryptoBotEnabled: isCryptoBotEnabled !== undefined ? isCryptoBotEnabled : undefined,
-            isStarsEnabled: isStarsEnabled !== undefined ? isStarsEnabled : undefined,
             isPaypalychEnabled: isPaypalychEnabled !== undefined ? isPaypalychEnabled : undefined,
             paypalychShopId: paypalychShopId !== undefined ? paypalychShopId : undefined,
             paypalychToken: paypalychToken !== undefined ? paypalychToken : undefined,
@@ -92,6 +90,8 @@ export async function PATCH(req: Request) {
             faq: faq !== undefined ? faq : undefined,
         },
       })
+      console.log("Settings updated successfully:", updated)
+      return NextResponse.json({ settings: updated })
     } else {
       updated = await prisma.settings.create({
         data: {
@@ -106,21 +106,20 @@ export async function PATCH(req: Request) {
             telegramBotToken: telegramBotToken,
             telegramBotUsername: telegramBotUsername,
             isCryptoBotEnabled: isCryptoBotEnabled ?? true,
-            isStarsEnabled: isStarsEnabled ?? true,
             isPaypalychEnabled: isPaypalychEnabled ?? false,
             paypalychShopId: paypalychShopId,
             paypalychToken: paypalychToken,
-            referralPercent: referralPercent ?? 5.0,
+            referralPercent: referralPercent ?? 5,
             pricingMode: pricingMode ?? "manual",
             markupType: markupType ?? "percent",
             markupValue: markupValue ?? 0,
             supportLink: supportLink,
-            faq: faq
+            faq: faq,
         },
       })
+      console.log("Settings created successfully:", updated)
+      return NextResponse.json({ settings: updated })
     }
-
-    return NextResponse.json({ settings: updated })
   } catch (error) {
     console.error("PATCH /api/admin/settings error:", error)
     return NextResponse.json(
