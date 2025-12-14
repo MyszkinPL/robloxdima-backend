@@ -17,8 +17,12 @@ export async function GET(
     }
 
     const { userId } = await context.params
-    const logs = await getUserLogs(userId)
-    return NextResponse.json({ logs })
+    const searchParams = req.nextUrl.searchParams
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "50")
+
+    const { logs, total } = await getUserLogs(userId, page, limit)
+    return NextResponse.json({ logs, total })
   } catch (error) {
     console.error("GET /api/admin/users/[userId]/logs error:", error)
     return NextResponse.json(

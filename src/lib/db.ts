@@ -447,18 +447,28 @@ export async function logAction(userId: string, action: string, details?: string
   });
 }
 
-export async function getUserLogs(userId: string): Promise<Log[]> {
-  const logs = await prisma.log.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' }
-  });
-  return logs.map(log => ({
-    id: log.id,
-    userId: log.userId,
-    action: log.action,
-    details: log.details,
+export async function getUserLogs(userId: string, page: number = 1, limit: number = 50): Promise<{ logs: Log[], total: number }> {
+  const skip = (page - 1) * limit;
+  const [logs, total] = await Promise.all([
+    prisma.log.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit,
+    }),
+    prisma.log.count({ where: { userId } })
+  ]);
+
+  return {
+    logs: logs.map(log => ({
+      id: log.id,
+      userId: log.userId,
+      action: log.action,
+      details: log.details,
       createdAt: log.createdAt.toISOString()
-    }));
+    })),
+    total
+  };
 }
 
 export interface AdminLogEntry {
