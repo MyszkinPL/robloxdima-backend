@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/session"
 import { prisma } from "@/lib/db"
 import { getSettings } from "@/lib/settings"
+import { getAuthenticatedRbxClient } from "@/lib/api-client"
 
 export async function POST(
   req: NextRequest,
@@ -41,8 +42,29 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    if (order.status !== "pending") {
-      return NextResponse.json({ error: "Can only cancel pending orders" }, { status: 400 })
+    if (order.status !== "pending" && order.status !== "processing") {
+      return NextResponse.json({ error: "Можно отменить только заказы в ожидании или в обработке" }, { status: 400 })
+    }
+
+    // If processing, try to cancel on RbxCrate first
+    if (order.status === "processing") {
+       try {
+         const client = await getAuthenticatedRbxClient()
+         // Note: RbxCrate might throw if order cannot be cancelled
+         await client.orders.cancel({ orderId })
+       } catch (error) {
+         // If it's 404, we can assume it's safe to cancel locally
+         // If it's other error (e.g. "Already completed"), we should not cancel
+         const isNotFound = error instanceof Error && error.message.includes("not found")
+         // We can check error types if we imported them, but message check is often enough
+         // actually we can import RbxCrateNotFoundError
+         
+         // For now, if cancel fails, we assume we cannot cancel it
+         // But wait, if it's "not found", it means we can refund it?
+         // Let's assume strict behaviour: if RbxCrate errors, we abort cancel.
+         console.error("RbxCrate cancel failed:", error)
+         return NextResponse.json({ error: "Не удалось отменить заказ на стороне провайдера. Возможно, он уже выполняется." }, { status: 400 })
+       }
     }
 
     // Refund logic

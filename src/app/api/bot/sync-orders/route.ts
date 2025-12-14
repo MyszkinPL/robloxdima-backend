@@ -75,15 +75,15 @@ export async function POST(req: NextRequest) {
         // Handle 404 (Order not found on RbxCrate)
         if (error instanceof RbxCrateNotFoundError) {
           const timeSinceCreation = Date.now() - order.createdAt.getTime()
-          const ONE_DAY_MS = 24 * 60 * 60 * 1000
+          const TIMEOUT_MS = 15 * 60 * 1000 // 15 minutes
 
-          // If order is older than 24 hours and not found on RbxCrate, mark as failed/refund
-          if (timeSinceCreation > ONE_DAY_MS) {
-             console.log(`Order ${order.id} not found on RbxCrate and > 24h old. Marking as failed.`)
+          // If order is older than 15 minutes and not found on RbxCrate, mark as failed/refund
+          if (timeSinceCreation > TIMEOUT_MS) {
+             console.log(`Order ${order.id} not found on RbxCrate and > 15m old. Marking as failed.`)
              const result = await refundOrder(order.id, {
                source: "system",
                externalStatus: "not_found",
-               externalError: "Order not found on RbxCrate after 24h",
+               externalError: "Order not found on RbxCrate after 15m",
              })
              if (result.refunded) {
                updates.push({
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
                })
              }
           } else {
-             console.warn(`Order ${order.id} not found on RbxCrate, but < 24h old. Skipping.`)
+             console.warn(`Order ${order.id} not found on RbxCrate, but < 15m old. Skipping.`)
           }
         } else {
            console.error(`Error syncing order ${order.id}:`, error)
