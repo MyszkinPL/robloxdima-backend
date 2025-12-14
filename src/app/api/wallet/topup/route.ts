@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createInvoice } from "@/lib/crypto-bot"
+import { paypalych } from "@/lib/paypalych"
 import { createPayment, Payment, getUser } from "@/lib/db"
 import { getSessionUser } from "@/lib/session"
 import { rateLimit } from "@/lib/ratelimit"
 import { getSettings } from "@/lib/settings"
 import { prisma } from "@/lib/prisma"
+import { v4 as uuidv4 } from "uuid"
 
 export async function POST(req: NextRequest) {
   try {
@@ -51,11 +53,18 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const body = await req.json()
+    const rawAmount = Number(body.amount)
+    const method = body.method === "paypalych" ? "paypalych" : "cryptobot"
+
+    if (!rawAmount || rawAmount <= 0) {
+      return NextResponse.json({ error: "Invalid amount" }, { status: 400 })
+    }
+
     const existingPayment = await prisma.payment.findFirst({
       where: {
         userId,
         status: "pending",
-        method: "cryptobot",
       },
       orderBy: {
         createdAt: "desc",
@@ -63,51 +72,67 @@ export async function POST(req: NextRequest) {
     })
 
     if (existingPayment) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "У вас уже есть ожидающий счет. Сначала оплатите или отмените его.",
-          existingPayment: {
-            id: existingPayment.id,
-            amount: existingPayment.amount,
-            currency: existingPayment.currency,
-            status: existingPayment.status,
-            invoiceUrl: existingPayment.invoiceUrl,
-            createdAt: existingPayment.createdAt.toISOString(),
-          },
-        },
-        { status: 409 },
-      )
-    }
-
-    const body = await req.json()
-    const rawAmount = Number(body.amount)
-
-    if (!rawAmount || rawAmount <= 0) {
-      return NextResponse.json({ error: "Invalid amount" }, { status: 400 })
+      // Automatically cancel the existing payment to allow creating a new one
+      await prisma.payment.update({
+        where: { id: existingPayment.id },
+        data: { status: "cancelled" }
+      })
     }
 
     const amount = Math.ceil(rawAmount * 100) / 100
-
     const description = `Пополнение баланса (${user.username || user.firstName})`
-    // User requested to use the specific success page
-    const invoice = await createInvoice(
-      amount,
-      description,
-      user.id,
-      "viewItem",
-      "https://rbtrade.org/payment/success"
-    )
 
-    type InvoiceShape = {
-      invoice_id: number | string
-      bot_invoice_url?: string
-      pay_url?: string
+    let paymentUrl = ""
+    let paymentId = ""
+
+    if (method === "paypalych") {
+      if (!settings.isPaypalychEnabled) {
+        return NextResponse.json({ error: "Метод оплаты временно недоступен" }, { status: 400 })
+      }
+      if (!settings.paypalychShopId || !settings.paypalychToken) {
+        return NextResponse.json({ error: "Метод оплаты не настроен" }, { status: 500 })
+      }
+
+      // Generate a custom ID for PayPalych order_id
+      const orderId = `${userId.slice(0, 5)}-${Date.now()}`
+      
+      const bill = await paypalych.createBill({
+        amount,
+        shop_id: settings.paypalychShopId,
+        order_id: orderId,
+        description: description,
+        type: "NORMAL",
+        currency_in: "RUB",
+        payer_pays_commission: 1, // Customer pays commission
+        success_url: "https://rbtrade.org/payment/success",
+        fail_url: "https://rbtrade.org/payment/fail",
+      })
+
+      paymentUrl = bill.link_page_url
+      paymentId = orderId
+    } else {
+      // CryptoBot
+      if (!settings.isCryptoBotEnabled) {
+        return NextResponse.json({ error: "Метод оплаты временно недоступен" }, { status: 400 })
+      }
+      const invoice = await createInvoice(
+        amount,
+        description,
+        user.id,
+        "viewItem",
+        "https://rbtrade.org/payment/success"
+      )
+  
+      type InvoiceShape = {
+        invoice_id: number | string
+        bot_invoice_url?: string
+        pay_url?: string
+      }
+  
+      const anyInvoice = invoice as InvoiceShape
+      paymentUrl = anyInvoice.bot_invoice_url || anyInvoice.pay_url || ""
+      paymentId = String(anyInvoice.invoice_id)
     }
-
-    const anyInvoice = invoice as InvoiceShape
-    const paymentUrl = anyInvoice.bot_invoice_url || anyInvoice.pay_url || ""
-    const paymentId = String(anyInvoice.invoice_id)
 
     const payment: Payment = {
       id: paymentId,
@@ -117,7 +142,7 @@ export async function POST(req: NextRequest) {
       status: "pending",
       invoiceUrl: paymentUrl,
       createdAt: new Date().toISOString(),
-      method: "cryptobot",
+      method: method,
       providerData: null,
     }
 

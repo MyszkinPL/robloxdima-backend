@@ -106,18 +106,7 @@ class BackendApiClient:
     res.raise_for_status()
     return res.json()
 
-  async def check_bybit_payment(self, telegram_id: int, payment_id: str) -> Dict[str, Any]:
-    payload = {"paymentId": payment_id}
-    res = await self._client.post(
-      "/api/wallet/bybit/check",
-      json=payload,
-      headers=self._headers_for_user(telegram_id),
-    )
-    # 409 means already processed, which is fine to handle
-    if res.status_code == 409:
-      return {"success": False, "error": "Duplicate"}
-    res.raise_for_status()
-    return res.json()
+
 
   async def get_my_orders(self, telegram_id: int) -> Dict[str, Any]:
     res = await self._client.get(
@@ -150,15 +139,7 @@ class BackendApiClient:
        raise Exception(error_msg)
     return res.json()
 
-  async def create_bybit_pay_order(self, telegram_id: int, amount_rub: float) -> Dict[str, Any]:
-    payload = {"telegramId": telegram_id, "amount": amount_rub}
-    res = await self._client.post(
-      "/api/wallet/bybit/create",
-      json=payload,
-      headers=self._headers_for_user(telegram_id),
-    )
-    res.raise_for_status()
-    return res.json()
+
 
   async def create_manual_payment(
     self, 
@@ -214,23 +195,7 @@ class BackendApiClient:
     res.raise_for_status()
     return res.json()
 
-  async def set_bybit_uid(self, telegram_id: int, bybit_uid: str | None) -> Dict[str, Any]:
-    payload: Dict[str, Any] = {"bybitUid": bybit_uid}
-    res = await self._client.patch(
-      "/api/me/bybit-uid",
-      json=payload,
-      headers=self._headers_for_user(telegram_id),
-    )
-    res.raise_for_status()
-    return res.json()
 
-  async def bybit_quick_check(self, telegram_id: int) -> Dict[str, Any]:
-    res = await self._client.post(
-      "/api/wallet/bybit/check",
-      headers=self._headers_for_user(telegram_id),
-    )
-    res.raise_for_status()
-    return res.json()
 
   async def admin_get_orders_summary(self, telegram_id: int) -> Dict[str, Any]:
     res = await self._client.get(

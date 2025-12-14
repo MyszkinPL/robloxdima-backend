@@ -9,10 +9,6 @@ export interface Settings {
   cryptoBotTestnet: boolean;
   cryptoBotAllowedAssets: string;
   cryptoBotFiatCurrency: string;
-  bybitApiKey: string;
-  bybitApiSecret: string;
-  bybitTestnet: boolean;
-  bybitStoreUid: string;
   telegramBotToken: string;
   telegramBotUsername: string;
   faq: string; // JSON string
@@ -22,8 +18,10 @@ export interface Settings {
   markupType: string;
   markupValue: number;
   isCryptoBotEnabled: boolean;
-  isBybitEnabled: boolean;
   isStarsEnabled: boolean;
+  isPaypalychEnabled: boolean;
+  paypalychShopId: string;
+  paypalychToken: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -35,10 +33,6 @@ const DEFAULT_SETTINGS: Settings = {
   cryptoBotTestnet: false,
   cryptoBotAllowedAssets: "",
   cryptoBotFiatCurrency: "RUB",
-  bybitApiKey: "",
-  bybitApiSecret: "",
-  bybitTestnet: false,
-  bybitStoreUid: "",
   telegramBotToken: "",
   telegramBotUsername: "",
   faq: "[]",
@@ -48,8 +42,10 @@ const DEFAULT_SETTINGS: Settings = {
   markupType: "percent",
   markupValue: 0,
   isCryptoBotEnabled: true,
-  isBybitEnabled: false,
   isStarsEnabled: true,
+  isPaypalychEnabled: false,
+  paypalychShopId: "",
+  paypalychToken: "",
 };
 
 export async function getSettings(): Promise<Settings> {
@@ -65,10 +61,10 @@ export async function getSettings(): Promise<Settings> {
         ...DEFAULT_SETTINGS,
         rbxKey: undefined, // Prisma handles optional/null
         cryptoBotToken: undefined,
-        bybitApiKey: undefined,
-        bybitApiSecret: undefined,
         telegramBotToken: undefined,
         telegramBotUsername: undefined,
+        paypalychShopId: undefined,
+        paypalychToken: undefined,
       }
     });
     
@@ -81,10 +77,6 @@ export async function getSettings(): Promise<Settings> {
       cryptoBotTestnet: newSettings.cryptoBotTestnet,
       cryptoBotAllowedAssets: newSettings.cryptoBotAllowedAssets || "",
       cryptoBotFiatCurrency: newSettings.cryptoBotFiatCurrency || "RUB",
-      bybitApiKey: newSettings.bybitApiKey || "",
-      bybitApiSecret: newSettings.bybitApiSecret || "",
-      bybitTestnet: newSettings.bybitTestnet,
-      bybitStoreUid: newSettings.bybitStoreUid || "",
       telegramBotToken: newSettings.telegramBotToken || "",
       telegramBotUsername: newSettings.telegramBotUsername || "",
       faq: newSettings.faq || "[]",
@@ -94,8 +86,10 @@ export async function getSettings(): Promise<Settings> {
       markupType: newSettings.markupType,
       markupValue: newSettings.markupValue,
       isCryptoBotEnabled: newSettings.isCryptoBotEnabled,
-      isBybitEnabled: newSettings.isBybitEnabled,
       isStarsEnabled: newSettings.isStarsEnabled,
+      isPaypalychEnabled: newSettings.isPaypalychEnabled,
+      paypalychShopId: newSettings.paypalychShopId || "",
+      paypalychToken: newSettings.paypalychToken || "",
     };
   }
 
@@ -108,10 +102,6 @@ export async function getSettings(): Promise<Settings> {
     cryptoBotTestnet: settings.cryptoBotTestnet,
     cryptoBotAllowedAssets: settings.cryptoBotAllowedAssets || "",
     cryptoBotFiatCurrency: settings.cryptoBotFiatCurrency || "RUB",
-    bybitApiKey: settings.bybitApiKey || "",
-    bybitApiSecret: settings.bybitApiSecret || "",
-    bybitTestnet: settings.bybitTestnet,
-    bybitStoreUid: settings.bybitStoreUid || "",
     telegramBotToken: settings.telegramBotToken || "",
     telegramBotUsername: settings.telegramBotUsername || "",
     faq: settings.faq || "[]",
@@ -121,8 +111,10 @@ export async function getSettings(): Promise<Settings> {
     markupType: settings.markupType,
     markupValue: settings.markupValue,
     isCryptoBotEnabled: settings.isCryptoBotEnabled,
-    isBybitEnabled: settings.isBybitEnabled,
     isStarsEnabled: settings.isStarsEnabled,
+    isPaypalychEnabled: settings.isPaypalychEnabled,
+    paypalychShopId: settings.paypalychShopId || "",
+    paypalychToken: settings.paypalychToken || "",
   };
 }
 
@@ -138,10 +130,6 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
       cryptoBotTestnet: newSettings.cryptoBotTestnet,
       cryptoBotAllowedAssets: newSettings.cryptoBotAllowedAssets || null,
       cryptoBotFiatCurrency: newSettings.cryptoBotFiatCurrency || "RUB",
-      bybitApiKey: newSettings.bybitApiKey || null,
-      bybitApiSecret: newSettings.bybitApiSecret || null,
-      bybitTestnet: newSettings.bybitTestnet,
-      bybitStoreUid: newSettings.bybitStoreUid || null,
       telegramBotToken: newSettings.telegramBotToken || null,
       telegramBotUsername: newSettings.telegramBotUsername || null,
       faq: newSettings.faq,
@@ -151,8 +139,10 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
       markupType: newSettings.markupType,
       markupValue: newSettings.markupValue,
       isCryptoBotEnabled: newSettings.isCryptoBotEnabled,
-      isBybitEnabled: newSettings.isBybitEnabled,
       isStarsEnabled: newSettings.isStarsEnabled,
+      isPaypalychEnabled: newSettings.isPaypalychEnabled,
+      paypalychShopId: newSettings.paypalychShopId || null,
+      paypalychToken: newSettings.paypalychToken || null,
     },
     create: {
       id: 1,
@@ -164,10 +154,6 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
       cryptoBotTestnet: newSettings.cryptoBotTestnet ?? DEFAULT_SETTINGS.cryptoBotTestnet,
       cryptoBotAllowedAssets: newSettings.cryptoBotAllowedAssets,
       cryptoBotFiatCurrency: newSettings.cryptoBotFiatCurrency ?? DEFAULT_SETTINGS.cryptoBotFiatCurrency,
-      bybitApiKey: newSettings.bybitApiKey,
-      bybitApiSecret: newSettings.bybitApiSecret,
-      bybitTestnet: newSettings.bybitTestnet ?? DEFAULT_SETTINGS.bybitTestnet,
-      bybitStoreUid: newSettings.bybitStoreUid,
       telegramBotToken: newSettings.telegramBotToken,
       telegramBotUsername: newSettings.telegramBotUsername,
       faq: newSettings.faq ?? DEFAULT_SETTINGS.faq,
@@ -177,8 +163,10 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
       markupType: newSettings.markupType ?? DEFAULT_SETTINGS.markupType,
       markupValue: newSettings.markupValue ?? DEFAULT_SETTINGS.markupValue,
       isCryptoBotEnabled: newSettings.isCryptoBotEnabled ?? DEFAULT_SETTINGS.isCryptoBotEnabled,
-      isBybitEnabled: newSettings.isBybitEnabled ?? DEFAULT_SETTINGS.isBybitEnabled,
       isStarsEnabled: newSettings.isStarsEnabled ?? DEFAULT_SETTINGS.isStarsEnabled,
+      isPaypalychEnabled: newSettings.isPaypalychEnabled ?? DEFAULT_SETTINGS.isPaypalychEnabled,
+      paypalychShopId: newSettings.paypalychShopId,
+      paypalychToken: newSettings.paypalychToken,
     }
   });
 
@@ -191,10 +179,6 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
     cryptoBotTestnet: updated.cryptoBotTestnet,
     cryptoBotAllowedAssets: updated.cryptoBotAllowedAssets || "",
     cryptoBotFiatCurrency: updated.cryptoBotFiatCurrency || "RUB",
-    bybitApiKey: updated.bybitApiKey || "",
-    bybitApiSecret: updated.bybitApiSecret || "",
-    bybitTestnet: updated.bybitTestnet,
-    bybitStoreUid: updated.bybitStoreUid || "",
     telegramBotToken: updated.telegramBotToken || "",
     telegramBotUsername: updated.telegramBotUsername || "",
     faq: updated.faq || "[]",
@@ -204,7 +188,9 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
     markupType: updated.markupType,
     markupValue: updated.markupValue,
     isCryptoBotEnabled: updated.isCryptoBotEnabled,
-    isBybitEnabled: updated.isBybitEnabled,
     isStarsEnabled: updated.isStarsEnabled,
+    isPaypalychEnabled: updated.isPaypalychEnabled,
+    paypalychShopId: updated.paypalychShopId || "",
+    paypalychToken: updated.paypalychToken || "",
   };
 }

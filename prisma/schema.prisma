@@ -15,7 +15,6 @@ model User {
   balance   Float    @default(0)
   isBanned  Boolean  @default(false)
   createdAt DateTime @default(now())
-  bybitUid  String?
   referrerId String?
   referralBalance Float @default(0)
   
@@ -89,10 +88,6 @@ model Settings {
   cryptoBotTestnet    Boolean @default(false)
   cryptoBotAllowedAssets String? // Comma separated assets like USDT,TON,BTC
   cryptoBotFiatCurrency String @default("RUB") // RUB, USD, EUR, etc.
-  bybitApiKey         String?
-  bybitApiSecret      String?
-  bybitTestnet        Boolean @default(false)
-  bybitStoreUid       String?
   telegramBotToken    String?
   telegramBotUsername String?
   faq                 String? // JSON string for FAQ items
@@ -104,8 +99,10 @@ model Settings {
   markupValue         Float   @default(0)
 
   isCryptoBotEnabled  Boolean @default(true)
-  isBybitEnabled      Boolean @default(false)
   isStarsEnabled      Boolean @default(true)
+  isPaypalychEnabled  Boolean @default(false)
+  paypalychShopId     String?
+  paypalychToken      String?
 
   @@map("settings")
 }

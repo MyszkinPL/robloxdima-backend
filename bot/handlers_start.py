@@ -11,7 +11,6 @@ from .keyboards import (
   main_menu_keyboard,
   admin_menu_keyboard,
   admin_crypto_keyboard,
-  admin_bybit_keyboard,
   admin_rbx_keyboard,
   support_keyboard,
   admin_settings_keyboard,
@@ -430,11 +429,6 @@ async def _render_admin_settings(callback: CallbackQuery, api: BackendApiClient)
     f"🔹 CryptoBot валюты: <b>{crypto_bot_allowed_assets or '-'}</b>",
     f"🔹 CryptoBot фиат: <b>{crypto_bot_fiat_currency or '-'}</b>",
     f"🔹 Telegram bot token: <b>{'✅ установлен' if telegram_bot_token else '❌ не задан'}</b>",
-    "",
-    "<b>💹 Bybit:</b>",
-    f"🔹 API ключи: <b>{'✅ установлены' if bybit_api_key and bybit_api_secret else '❌ не заданы'}</b>",
-    f"🔹 Bybit тестнет: <b>{'🟢 включен' if bybit_testnet else '🔴 выключен'}</b>",
-    f"🔹 Merchant ID: <b>{bybit_store_uid or '-'}</b>",
   ]
   text = "\n".join(lines)
   await callback.message.edit_text(text, reply_markup=admin_settings_keyboard())
@@ -632,38 +626,7 @@ async def handle_admin_settings_crypto_fiat(callback: CallbackQuery, state: FSMC
   await callback.answer()
 
 
-@router.callback_query(F.data == "admin:settings:bybit_keys")
-async def handle_admin_settings_bybit_keys(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
-  if not callback.from_user:
-    await callback.answer()
-    return
-  if not await _is_admin(api, callback.from_user.id):
-    await callback.answer("Доступ только для админов.", show_alert=True)
-    return
-  await state.set_state(AdminStates.waiting_settings_value)
-  await state.update_data(settings_field="bybitKeys")
-  await callback.message.edit_text(
-    "Отправьте два значения в двух строках:\n1-я строка — Bybit API Key\n2-я строка — Bybit API Secret",
-    reply_markup=admin_flow_cancel_keyboard(),
-  )
-  await callback.answer()
 
-
-@router.callback_query(F.data == "admin:settings:bybit_store_uid")
-async def handle_admin_settings_bybit_store_uid(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
-  if not callback.from_user:
-    await callback.answer()
-    return
-  if not await _is_admin(api, callback.from_user.id):
-    await callback.answer("Доступ только для админов.", show_alert=True)
-    return
-  await state.set_state(AdminStates.waiting_settings_value)
-  await state.update_data(settings_field="bybitStoreUid")
-  await callback.message.edit_text(
-    "Введите Bybit Merchant ID, например 123456789",
-    reply_markup=admin_flow_cancel_keyboard(),
-  )
-  await callback.answer()
 
 
 @router.callback_query(F.data == "admin:settings:bybit_testnet_toggle")
@@ -729,17 +692,7 @@ async def handle_admin_settings_value(message: Message, state: FSMContext, api: 
     payload["cryptoBotFiatCurrency"] = text.upper()
   elif field == "rbxKey":
     payload["rbxKey"] = text
-  elif field == "bybitStoreUid":
-    payload["bybitStoreUid"] = text
-  elif field == "bybitKeys":
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    if len(lines) != 2:
-      await message.answer(
-        "Нужно отправить два значения в двух строках: сначала API Key, затем API Secret.",
-      )
-      return
-    payload["bybitApiKey"] = lines[0]
-    payload["bybitApiSecret"] = lines[1]
+
   else:
     await message.answer("Неизвестное поле настроек.")
     await state.clear()
@@ -831,21 +784,7 @@ async def handle_admin_crypto_rate(callback: CallbackQuery, api: BackendApiClien
   await callback.answer()
 
 
-@router.callback_query(F.data == "admin:bybit")
-async def handle_admin_bybit(callback: CallbackQuery, api: BackendApiClient) -> None:
-  if not callback.from_user:
-    await callback.answer()
-    return
-  if not await _is_admin(api, callback.from_user.id):
-    await callback.answer("Доступ только для админов.", show_alert=True)
-    return
-  await callback.message.edit_text(
-      "💱 <b>Bybit Pay</b>\n\n"
-      "Система работает в автоматическом режиме через Merchant API.\n"
-      "Платежи проверяются мгновенно при нажатии кнопки пользователем.",
-      reply_markup=admin_bybit_keyboard()
-  )
-  await callback.answer()
+
 
 
 @router.callback_query(F.data == "admin:rbx")

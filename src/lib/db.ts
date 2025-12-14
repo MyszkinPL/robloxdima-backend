@@ -28,7 +28,6 @@ export interface User {
   referralBalance: number;
   isBanned: boolean;
   createdAt: string;
-  bybitUid?: string;
   referrerId?: string;
 }
 
@@ -59,7 +58,6 @@ function mapUser(user: PrismaUser): User {
   // If not, we fallback to accessing as any but we prefer type safety.
   // We assume schema has these fields.
   const extendedUser = user as PrismaUser & { 
-    bybitUid?: string | null; 
     referrerId?: string | null; 
     referralBalance?: number;
   };
@@ -68,7 +66,6 @@ function mapUser(user: PrismaUser): User {
     ...user,
     username: user.username || undefined,
     photoUrl: user.photoUrl || undefined,
-    bybitUid: extendedUser.bybitUid ?? undefined,
     referrerId: extendedUser.referrerId ?? undefined,
     role: user.role as 'user' | 'admin',
     isBanned: user.isBanned,
@@ -538,8 +535,6 @@ export async function getAdminLogs(options: GetAdminLogsOptions = {}): Promise<{
       where.action = { in: ["order_refund", "order_refund_initiated"] };
     } else if (type === "bans") {
       where.action = { in: ["BAN", "UNBAN"] };
-    } else if (type === "bybit") {
-      where.action = "bybit_deposit";
     }
   }
 

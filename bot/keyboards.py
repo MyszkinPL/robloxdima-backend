@@ -150,13 +150,9 @@ def payment_method_keyboard(amount: float, settings: dict | None = None) -> Inli
   # Default to true if settings not loaded for some reason, or handle strictly?
   # Let's assume defaults: CryptoBot=True, Bybit=False (as requested)
   is_crypto_enabled = settings.get("isCryptoBotEnabled", True) if settings else True
-  is_bybit_enabled = settings.get("isBybitEnabled", False) if settings else False
 
   if is_crypto_enabled:
     rows.append([InlineKeyboardButton(text="🤖 Crypto Bot (Авто)", callback_data=f"topup:method:cryptobot:{amount}")])
-  
-  if is_bybit_enabled:
-    rows.append([InlineKeyboardButton(text="💱 Bybit Pay (Вручную)", callback_data=f"topup:method:bybit:{amount}")])
 
   rows.append([InlineKeyboardButton(text="⬅️ Отмена", callback_data="flow:cancel")])
 
@@ -183,20 +179,7 @@ def admin_flow_cancel_keyboard() -> InlineKeyboardMarkup:
   )
 
 
-def admin_bybit_keyboard() -> InlineKeyboardMarkup:
-  return InlineKeyboardMarkup(
-    inline_keyboard=[
-      [
-        InlineKeyboardButton(text="💰 Проверить баланс", callback_data="admin:bybit:balance"),
-      ],
-      [
-        InlineKeyboardButton(text="🔄 Синхронизация", callback_data="admin:bybit:sync"),
-      ],
-      [
-        InlineKeyboardButton(text="⬅️ Назад", callback_data="admin:menu"),
-      ],
-    ]
-  )
+
 
 
 def admin_rbx_keyboard() -> InlineKeyboardMarkup:
@@ -271,7 +254,6 @@ def admin_menu_keyboard() -> InlineKeyboardMarkup:
       ],
       [
         InlineKeyboardButton(text="🤖 Crypto Bot", callback_data="admin:crypto"),
-        InlineKeyboardButton(text="💱 Bybit", callback_data="admin:bybit"),
       ],
       [
         InlineKeyboardButton(text="💼 Rbx", callback_data="admin:rbx"),

@@ -72,7 +72,6 @@ export async function GET(req: NextRequest) {
         status: u.isBanned ? "banned" : "active",
         role: u.role,
         balance: u.balance,
-        bybitUid: u.bybitUid || null,
       }
     })
 

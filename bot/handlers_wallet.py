@@ -24,7 +24,6 @@ router = Router()
 
 class WalletStates(StatesGroup):
     waiting_topup_amount = State()
-    waiting_bybit_receipt = State()
 
 
 @router.callback_query(F.data == "menu:balance")
@@ -277,74 +276,6 @@ async def handle_topup_cryptobot(callback: CallbackQuery, api: BackendApiClient)
     )
 
 
-@router.callback_query(F.data.startswith("topup:method:bybit:"))
-async def handle_topup_bybit(callback: CallbackQuery, api: BackendApiClient, state: FSMContext) -> None:
-    if not callback.from_user:
-        return
 
-    try:
-        amount = float(callback.data.split(":")[-1])
-    except ValueError:
-        await callback.answer("Ошибка суммы", show_alert=True)
-        return
-
-    await callback.message.edit_text("⏳ Создаем платеж Bybit Pay...")
-
-    try:
-        res = await api.create_bybit_pay_order(
-            telegram_id=callback.from_user.id,
-            amount_rub=amount
-        )
-    except Exception as e:
-        await callback.message.edit_text(f"❌ Ошибка создания платежа: {e}")
-        return
-
-    payment_id = res.get("paymentId")
-    pay_url = res.get("payUrl") or res.get("webUrl") or res.get("appUrl")
-    amount_usdt = res.get("amountUsdt")
-    
-    if not pay_url:
-        # Fallback if no URL returned (e.g. if API requires QR scan only)
-        # But for E_COMMERCE it should return a URL.
-        # Let's print the full response to debug if it fails
-        await callback.message.edit_text(f"❌ Ошибка: Bybit не вернул ссылку на оплату.\nResponse: {res}")
-        return
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔗 Оплатить через Bybit", url=pay_url)],
-        [InlineKeyboardButton(text="🔄 Проверить оплату", callback_data=f"bybit:check:{payment_id}")],
-        [InlineKeyboardButton(text="⬅️ Отмена", callback_data="flow:cancel")]
-    ])
-    
-    text = (
-        f"💱 <b>Оплата через Bybit Pay</b>\n\n"
-        f"💰 <b>Сумма:</b> <code>{amount} RUB</code>\n"
-        f"💲 <b>В USDT:</b> <code>~{amount_usdt} USDT</code>\n\n"
-        f"<blockquote>⚠️ После оплаты нажмите «Проверить оплату»</blockquote>\n\n"
-        f"👇 Нажмите кнопку ниже для перехода:"
-    )
-    
-    await callback.message.edit_text(text, reply_markup=keyboard)
-
-
-@router.callback_query(F.data.startswith("bybit:check:"))
-async def handle_bybit_check(callback: CallbackQuery, api: BackendApiClient) -> None:
-    payment_id = callback.data.split(":")[-1]
-    
-    await callback.answer("Проверяем платеж...", show_alert=False)
-    
-    try:
-        res = await api.check_bybit_payment(callback.from_user.id, payment_id)
-        
-        if res.get("paid") or res.get("alreadyPaid"):
-             await callback.message.edit_text(
-                "✅ <b>Оплата получена!</b>\n\n"
-                "Ваш баланс успешно пополнен."
-             )
-        else:
-             await callback.answer("Платеж пока не найден. Попробуйте через минуту.", show_alert=True)
-             
-    except Exception as e:
-        await callback.answer("Ошибка проверки. Попробуйте позже.", show_alert=True)
 
 

@@ -12,10 +12,9 @@ export async function GET() {
     telegramBotUsername: settings.telegramBotUsername,
     supportLink: settings.supportLink,
     faq: settings.faq,
-    bybitStoreUid: settings.bybitStoreUid || "",
     isCryptoBotEnabled: settings.isCryptoBotEnabled,
-    isBybitEnabled: settings.isBybitEnabled,
     isStarsEnabled: settings.isStarsEnabled,
+    isPaypalychEnabled: settings.isPaypalychEnabled,
     referralPercent: settings.referralPercent,
   })
 }
