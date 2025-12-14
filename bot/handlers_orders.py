@@ -26,6 +26,7 @@ class OrderStates(StatesGroup):
   waiting_username = State()
   waiting_type = State()
   waiting_amount = State()
+  waiting_custom_amount = State()
   waiting_place_id = State()
 
 
@@ -105,7 +106,7 @@ async def handle_order_username(message: Message, state: FSMContext, api: Backen
 
 
 @router.callback_query(F.data.startswith("order:type:"))
-async def handle_order_type_selection(callback: CallbackQuery, state: FSMContext) -> None:
+async def handle_order_type_selection(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
     type_ = callback.data.split(":")[-1]
     await state.update_data(order_type=type_)
     
@@ -120,13 +121,62 @@ async def handle_order_type_selection(callback: CallbackQuery, state: FSMContext
             reply_markup=flow_cancel_keyboard()
          )
     else:
+         rate = 0
+         available = 0
+         try:
+            settings = await api.get_public_settings()
+            rate = settings.get("rate", 0)
+            stock = await api.get_stock_summary()
+            available = stock.get("robuxAvailable", 0)
+         except:
+            pass
+            
          await state.set_state(OrderStates.waiting_amount)
          await callback.message.edit_text(
             f"✅ <b>Способ:</b> {'Gamepass' if type_ == 'gamepass' else 'VIP Server'}\n\n"
+            f"📦 <b>Доступно:</b> {available} R$\n"
+            f"💵 <b>Курс:</b> {rate} ₽ за 1 R$\n\n"
             "👇 <b>Выберите сумму робуксов:</b>",
             reply_markup=order_amount_keyboard()
          )
     await callback.answer()
+
+
+@router.callback_query(F.data == "order:amount:custom")
+async def handle_order_custom_amount_start(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.set_state(OrderStates.waiting_custom_amount)
+    await callback.message.edit_text(
+        "✍️ <b>Введите сумму робуксов:</b>\n"
+        "<blockquote>Минимальная сумма: 100 R$</blockquote>",
+        reply_markup=flow_cancel_keyboard()
+    )
+    await callback.answer()
+
+
+@router.message(OrderStates.waiting_custom_amount)
+async def handle_order_custom_amount_input(message: Message, state: FSMContext, api: BackendApiClient) -> None:
+    text = (message.text or "").strip()
+    if not text.isdigit():
+        await message.answer("⚠️ Сумма должна быть числом.")
+        return
+        
+    amount = int(text)
+    if amount < 100:
+        await message.answer("⚠️ Минимальная сумма заказа: 100 R$.")
+        return
+
+    # Check stock? Or let it fail later?
+    # Better check later or warn. For now just accept.
+    
+    await state.update_data(amount=amount)
+    await state.set_state(OrderStates.waiting_place_id)
+    
+    await message.answer(
+        f"✅ <b>Сумма:</b> {amount} R$\n\n"
+        "🎮 <b>Введите ID плейса (Place ID):</b>\n"
+        "<blockquote>Его можно найти в ссылке на ваш плейс, например:\n.../games/<b>123456</b>/...</blockquote>",
+        reply_markup=flow_cancel_keyboard()
+    )
 
 
 @router.callback_query(F.data.startswith("order:amount:"))

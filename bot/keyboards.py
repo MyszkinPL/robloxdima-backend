@@ -104,6 +104,9 @@ def order_amount_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(text="5000 R$", callback_data="order:amount:5000"),
       ],
       [
+        InlineKeyboardButton(text="✍️ Своя сумма", callback_data="order:amount:custom"),
+      ],
+      [
         InlineKeyboardButton(text="⬅️ Отмена", callback_data="flow:cancel"),
       ],
     ]
