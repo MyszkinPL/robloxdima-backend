@@ -6,7 +6,7 @@ export class StockService {
 
   async getSummary(): Promise<StockResponse> {
     try {
-      return await this.http.request("/stock", "GET");
+      return await this.http.request("/orders/stock", "GET");
     } catch (error) {
       console.error("RbxCrate StockService.getSummary error:", error);
       return { robuxAvailable: 0, maxRobuxAvailable: 0 };
@@ -15,7 +15,7 @@ export class StockService {
 
   async getDetailed(): Promise<DetailedStockResponse> {
     try {
-      return await this.http.request("/stock/detailed", "GET");
+      return await this.http.request("/orders/detailed-stock", "GET");
     } catch (error) {
       console.error("RbxCrate StockService.getDetailed error:", error);
       return [];
