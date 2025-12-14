@@ -16,7 +16,7 @@ import { PasswordInput } from "@/components/ui/password-input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
-import { Settings } from "@/lib/settings"
+import type { AdminSettings } from "@/lib/settings"
 import { Loader2, CheckCircle2, XCircle, RefreshCw, Plus, Trash2, Copy } from "lucide-react"
 import {
   Select,
@@ -44,7 +44,7 @@ interface Currency {
 
 const FIAT_CURRENCIES = ["RUB", "USD", "EUR", "UAH", "BYN", "KZT", "UZS", "GBP"];
 
-export default function SettingsForm({ settings }: { settings: Settings }) {
+export default function SettingsForm({ settings }: { settings: AdminSettings }) {
   const [isPending, startTransition] = useTransition()
   const [isCheckingCrypto, setIsCheckingCrypto] = useState(false)
   const [cryptoCheckResult, setCryptoCheckResult] = useState<{
@@ -76,21 +76,28 @@ export default function SettingsForm({ settings }: { settings: Settings }) {
       ? `${window.location.origin}/api/webhooks/crypto-bot`
       : "",
   )
+  const [pricingMode, setPricingMode] = useState(settings.pricingMode || "manual")
 
   async function handleCheckCryptoBot() {
     setIsCheckingCrypto(true)
     setCryptoCheckResult(null)
     const result = await checkCryptoBotConnection()
-    setCryptoCheckResult(result)
+    const typedResult = result as {
+      success: boolean
+      me?: unknown
+      currencies?: Currency[]
+      error?: string
+    }
+    setCryptoCheckResult(typedResult)
     setIsCheckingCrypto(false)
     
-    if (result.success) {
+    if (typedResult.success) {
       toast.success("CryptoBot подключен успешно")
-      if (result.currencies) {
-        setAvailableCurrencies(result.currencies as unknown as Currency[])
+      if (typedResult.currencies) {
+        setAvailableCurrencies(typedResult.currencies)
       }
     } else {
-      toast.error("Ошибка подключения CryptoBot")
+      toast.error(typedResult.error || "Ошибка подключения CryptoBot")
     }
   }
 
@@ -119,6 +126,7 @@ export default function SettingsForm({ settings }: { settings: Settings }) {
         toast.error(result.error)
       } else {
         toast.success("Настройки сохранены")
+        window.location.reload()
       }
     })
   }
@@ -158,27 +166,79 @@ export default function SettingsForm({ settings }: { settings: Settings }) {
     <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
       <h1 className="text-2xl font-bold tracking-tight">Настройки магазина</h1>
       
-      <form action={handleSubmit} className="grid gap-6">
+      <form action={handleSubmit} className="flex flex-col gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Основные настройки</CardTitle>
             <CardDescription>
-              Управление курсом валют и режимом работы.
+              Управление курсом продажи и режимом работы.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="rate">Курс продажи (RUB за 1 Robux)</Label>
-              <Input 
-                id="rate" 
-                name="rate" 
-                type="number" 
-                defaultValue={settings.rate} 
-                step="0.01" 
-                min="0.1"
-                required
-              />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="pricingMode">Режим ценообразования</Label>
+                <Select 
+                  name="pricingMode" 
+                  value={pricingMode} 
+                  onValueChange={setPricingMode}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manual">Ручной</SelectItem>
+                    <SelectItem value="auto">Автоматический (от поставщика)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {pricingMode === "manual" 
+                    ? "Используется фиксированный курс, заданный ниже." 
+                    : "Курс рассчитывается автоматически на основе цены поставщика (RBXCRATE) и курса доллара."}
+                </p>
+              </div>
+
+              {pricingMode === "manual" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="rate">Курс (RUB за 1 Robux)</Label>
+                  <Input 
+                    id="rate" 
+                    name="rate" 
+                    type="text"
+                    inputMode="decimal"
+                    defaultValue={settings.rate} 
+                    required
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Настройка наценки</Label>
+                  <div className="flex gap-2">
+                     <Select name="markupType" defaultValue={settings.markupType || "percent"}>
+                        <SelectTrigger className="w-[110px]">
+                           <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                           <SelectItem value="percent">Процент %</SelectItem>
+                           <SelectItem value="fixed">Фикс. (RUB)</SelectItem>
+                        </SelectContent>
+                     </Select>
+                     <Input 
+                        name="markupValue"
+                        type="number" 
+                        step="0.01"
+                        defaultValue={settings.markupValue} 
+                        placeholder="Наценка"
+                        className="flex-1"
+                     />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Наценка добавляется к базовой стоимости 1 робукса.
+                  </p>
+                </div>
+              )}
             </div>
+
             <div className="flex items-center space-x-2">
                <Switch 
                  id="maintenance" 
@@ -454,6 +514,58 @@ export default function SettingsForm({ settings }: { settings: Settings }) {
                     Выберите криптовалюты для оплаты.
                   </p>
                   <input type="hidden" name="cryptoBotAllowedAssets" value={allowedAssets.join(",")} />
+                </div>
+              </div>
+              
+              <div className="mt-4 border-t pt-4 space-y-4">
+                <div className="space-y-2">
+                  <h3 className="font-medium">Bybit</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Настройка ключей API и Merchant ID для Bybit Pay.
+                  </p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="bybitApiKey">Bybit API Key</Label>
+                    <PasswordInput
+                      id="bybitApiKey"
+                      name="bybitApiKey"
+                      defaultValue={settings.bybitApiKey}
+                      placeholder="Введите API Key"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bybitApiSecret">Bybit API Secret</Label>
+                    <PasswordInput
+                      id="bybitApiSecret"
+                      name="bybitApiSecret"
+                      defaultValue={settings.bybitApiSecret}
+                      placeholder="Введите API Secret"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="bybitTestnet"
+                      name="bybitTestnet"
+                      defaultChecked={settings.bybitTestnet}
+                    />
+                    <Label htmlFor="bybitTestnet">Использовать Bybit Testnet</Label>
+                  </div>
+                  <div className="space-y-1 w-full sm:w-1/2">
+                    <Label htmlFor="bybitStoreUid">Bybit Merchant ID</Label>
+                    <Input
+                      id="bybitStoreUid"
+                      name="bybitStoreUid"
+                      type="text"
+                      defaultValue={settings.bybitStoreUid}
+                      placeholder="Например, 123456789"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Укажите Merchant ID от Bybit Pay (обычно совпадает с UID, проверьте в кабинете мерчанта).
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

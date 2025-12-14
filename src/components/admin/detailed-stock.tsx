@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { backendFetch } from "@/lib/api"
 
 type DetailedStockItem = {
   product: string
@@ -24,7 +25,9 @@ export function DetailedStock() {
 
     const load = async () => {
       try {
-        const res = await fetch("/api/admin/rbx/stock/detailed")
+        const res = await backendFetch("/api/admin/rbx/stock/detailed", {
+          method: "GET",
+        })
         const json = (await res.json()) as {
           success?: boolean
           stock?: DetailedStockResponse
@@ -107,4 +110,3 @@ export function DetailedStock() {
     </Card>
   )
 }
-

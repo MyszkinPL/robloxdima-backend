@@ -15,7 +15,7 @@ import {
 import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal, Trash2, Ban, History, Unlock, Loader2 } from "lucide-react"
 
-import { updateBalance, toggleAdminRole, deleteUserAction, toggleBanAction, fetchUserLogs } from "./actions"
+import { updateBalance, toggleAdminRole, deleteUserAction, toggleBanAction, fetchUserLogs, updateBybitUid } from "./actions"
 import { toast } from "sonner"
 import { Shield, ShieldAlert, ShieldCheck, Coins, Filter, Search } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -58,6 +58,7 @@ export type User = {
   status: "active" | "banned"
   role: "user" | "admin"
   balance: number
+  bybitUid: string | null
 }
 
 type UserLog = {
@@ -132,12 +133,16 @@ function UserActions({ user }: { user: User }) {
   const [showDeleteAlert, setShowDeleteAlert] = useState(false)
   const [balance, setBalance] = useState(user.balance.toString())
   const [isUpdating, setIsUpdating] = useState(false)
+  const [showBybitDialog, setShowBybitDialog] = useState(false)
+  const [bybitUid, setBybitUid] = useState(user.bybitUid || "")
+  const [isBybitUpdating, setIsBybitUpdating] = useState(false)
 
   const handleToggleAdmin = async () => {
     const newRole = user.role === "admin" ? false : true
     const result = await toggleAdminRole(user.id, newRole)
     if (result.success) {
       toast.success(`Роль пользователя обновлена: ${newRole ? "Администратор" : "Пользователь"}`)
+      window.location.reload()
     } else {
       toast.error("Ошибка обновления роли")
     }
@@ -148,6 +153,7 @@ function UserActions({ user }: { user: User }) {
     const result = await toggleBanAction(user.id, newStatus)
     if (result.success) {
       toast.success(`Пользователь ${newStatus ? "забанен" : "разбанен"}`)
+      window.location.reload()
     } else {
       toast.error("Ошибка обновления статуса бана")
     }
@@ -157,6 +163,7 @@ function UserActions({ user }: { user: User }) {
     const result = await deleteUserAction(user.id)
     if (result.success) {
       toast.success("Пользователь удален")
+      window.location.reload()
     } else {
       toast.error("Ошибка удаления пользователя")
     }
@@ -176,15 +183,61 @@ function UserActions({ user }: { user: User }) {
     if (result.success) {
         toast.success("Баланс обновлен")
         setShowBalanceDialog(false)
+        window.location.reload()
     } else {
         toast.error("Ошибка обновления баланса")
     }
     setIsUpdating(false)
   }
 
+  const handleUpdateBybitUid = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsBybitUpdating(true)
+    const value = bybitUid.trim()
+    const result = await updateBybitUid(user.id, value.length > 0 ? value : null)
+    if ((result as { success?: boolean }).success) {
+      toast.success("Bybit UID обновлен")
+      setShowBybitDialog(false)
+      window.location.reload()
+    } else {
+      toast.error("Ошибка обновления Bybit UID")
+    }
+    setIsBybitUpdating(false)
+  }
+
   return (
     <>
       <UserLogsDialog userId={user.id} open={showLogsDialog} onOpenChange={setShowLogsDialog} />
+      <Dialog open={showBybitDialog} onOpenChange={setShowBybitDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bybit UID пользователя</DialogTitle>
+            <DialogDescription>
+              Текущий Bybit UID пользователя {user.username}: {user.bybitUid || "не указан"}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateBybitUid} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="bybit-uid">Bybit UID или идентификатор</Label>
+              <Input
+                id="bybit-uid"
+                type="text"
+                value={bybitUid}
+                onChange={(e) => setBybitUid(e.target.value)}
+                placeholder="Например, 123456789"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowBybitDialog(false)}>
+                Отмена
+              </Button>
+              <Button type="submit" disabled={isBybitUpdating}>
+                {isBybitUpdating ? "Сохранение..." : "Сохранить"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       
       <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
         <AlertDialogContent>
@@ -216,8 +269,8 @@ function UserActions({ user }: { user: User }) {
               <Label htmlFor="balance">Новый баланс (₽)</Label>
               <Input
                 id="balance"
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
                 value={balance}
                 onChange={(e) => setBalance(e.target.value)}
               />
@@ -271,6 +324,10 @@ function UserActions({ user }: { user: User }) {
           <DropdownMenuItem onClick={() => setShowBalanceDialog(true)}>
             <Coins className="mr-2 h-4 w-4" />
             Изменить баланс
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setShowBybitDialog(true)}>
+            <Coins className="mr-2 h-4 w-4" />
+            Настроить Bybit UID
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleToggleAdmin}>
             {user.role === "admin" ? (
@@ -361,6 +418,14 @@ export const columns: ColumnDef<User>[] = [
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("balance"))
       return <div className="font-medium text-green-600">{amount.toFixed(2)} ₽</div>
+    },
+  },
+  {
+    accessorKey: "bybitUid",
+    header: "Bybit UID",
+    cell: ({ row }) => {
+      const uid = row.original.bybitUid
+      return <div className="text-xs text-muted-foreground">{uid || "—"}</div>
     },
   },
   {

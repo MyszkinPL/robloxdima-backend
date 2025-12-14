@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -14,33 +14,42 @@ import {
 import { Label } from "@/components/ui/label"
 import { Loader2, ExternalLink } from "lucide-react"
 import { toast } from "sonner"
+import { getBackendBaseUrl } from "@/lib/api"
 
 export function TopUpForm() {
   const [amount, setAmount] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [paymentData, setPaymentData] = useState<{ paymentUrl: string; paymentId: string } | null>(null)
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false)
 
-  // Polling for payment status
-  useEffect(() => {
+  const handleCheckPayment = async () => {
     if (!paymentData) return
+    setIsCheckingPayment(true)
+    try {
+      const backendBaseUrl = getBackendBaseUrl()
+      const res = await fetch(`${backendBaseUrl}/api/wallet/status/${paymentData.paymentId}`, {
+        credentials: "include",
+      })
+      const data = await res.json()
 
-    const interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/wallet/status/${paymentData.paymentId}`)
-        const data = await res.json()
-
-        if (res.ok && data.success && data.status === "paid") {
-          toast.success("Оплата прошла успешно! Баланс пополнен.")
-          setPaymentData(null)
-          setAmount("")
-        }
-      } catch (error) {
-        console.error("Polling error:", error)
+      if (res.ok && data.success && data.status === "paid") {
+        toast.success("Оплата прошла успешно! Баланс пополнен.")
+        setPaymentData(null)
+        setAmount("")
+      } else if (res.ok && data.success) {
+        toast.message("Платеж пока не оплачен", {
+          description: "Попробуйте чуть позже, после завершения оплаты в боте.",
+        })
+      } else {
+        toast.error(data.error || "Не удалось проверить статус платежа")
       }
-    }, 3000)
-
-    return () => clearInterval(interval)
-  }, [paymentData])
+    } catch (error) {
+      console.error("Error checking payment status:", error)
+      toast.error("Ошибка при проверке статуса платежа")
+    } finally {
+      setIsCheckingPayment(false)
+    }
+  }
 
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,11 +57,17 @@ export function TopUpForm() {
 
     setIsLoading(true)
     try {
-      const res = await fetch("/api/wallet/topup", {
+      const backendBaseUrl = getBackendBaseUrl()
+      if (!backendBaseUrl) {
+        toast.error("Бэкенд недоступен. Проверьте конфигурацию BACKEND_URL.")
+        return
+      }
+      const res = await fetch(`${backendBaseUrl}/api/wallet/topup`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({ amount: Number(amount) }),
       })
 
@@ -66,7 +81,9 @@ export function TopUpForm() {
       }
     } catch (error) {
       console.error("Error creating invoice:", error)
-      toast.error("Произошла ошибка при создании счета")
+      const message =
+        error instanceof Error ? error.message : "Неизвестная ошибка"
+      toast.error(`Ошибка: ${message}`)
     } finally {
       setIsLoading(false)
     }
@@ -84,7 +101,7 @@ export function TopUpForm() {
         <CardHeader>
           <CardTitle>Оплата счета</CardTitle>
           <CardDescription>
-            Перейдите в бот для оплаты. Статус обновится автоматически.
+            Перейдите в бот для оплаты. После оплаты нажмите «Я оплатил» для проверки.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -100,10 +117,15 @@ export function TopUpForm() {
           </Button>
         </CardContent>
         <CardFooter className="flex flex-col gap-2">
-           <div className="flex items-center justify-center text-sm text-muted-foreground animate-pulse py-2">
-             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-             Ожидание оплаты...
-           </div>
+           <Button
+             type="button"
+             className="w-full"
+             onClick={handleCheckPayment}
+             disabled={isCheckingPayment}
+           >
+             {isCheckingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+             Я оплатил
+           </Button>
           <Button 
             variant="ghost" 
             className="w-full" 
@@ -130,9 +152,9 @@ export function TopUpForm() {
             <Label htmlFor="amount">Сумма (₽)</Label>
             <Input 
               id="amount" 
-              type="number" 
+              type="text"
+              inputMode="decimal"
               placeholder="100" 
-              min="1"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required

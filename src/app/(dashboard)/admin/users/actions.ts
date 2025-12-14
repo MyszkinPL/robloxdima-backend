@@ -1,19 +1,29 @@
-"use server"
+import { backendFetch } from "@/lib/api"
+type UserLog = {
+  id: string
+  userId: string
+  action: string
+  details: string | null
+  createdAt: string
+}
 
-import { updateUserRole, updateUserBalance, deleteUser, toggleUserBan, getUserLogs, logAction } from "@/lib/db"
-import { revalidatePath } from "next/cache"
-import { getSessionUser } from "@/lib/session"
+type FetchUserLogsResult =
+  | { success: true; logs: UserLog[] }
+  | { success: false; error: string }
 
 export async function toggleAdminRole(userId: string, makeAdmin: boolean) {
   try {
-    const admin = await getSessionUser()
-    await updateUserRole(userId, makeAdmin ? "admin" : "user")
-    await logAction(userId, "ROLE_UPDATE", JSON.stringify({
-      targetUserId: userId,
-      initiatorUserId: admin?.id,
-      newRole: makeAdmin ? "admin" : "user",
-    }))
-    revalidatePath("/admin/users")
+    const res = await backendFetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        role: makeAdmin ? "admin" : "user",
+      }),
+    })
+
+    if (!res.ok) {
+      return { error: "Failed to update user role" }
+    }
+
     return { success: true }
   } catch (error) {
     console.error("Failed to update user role:", error)
@@ -23,14 +33,17 @@ export async function toggleAdminRole(userId: string, makeAdmin: boolean) {
 
 export async function updateBalance(userId: string, balance: number) {
   try {
-    const admin = await getSessionUser()
-    await updateUserBalance(userId, balance)
-    await logAction(userId, "BALANCE_UPDATE", JSON.stringify({
-      targetUserId: userId,
-      initiatorUserId: admin?.id,
-      newBalance: balance,
-    }))
-    revalidatePath("/admin/users")
+    const res = await backendFetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        balance,
+      }),
+    })
+
+    if (!res.ok) {
+      return { error: "Failed to update user balance" }
+    }
+
     return { success: true }
   } catch (error) {
     console.error("Failed to update user balance:", error)
@@ -38,10 +51,36 @@ export async function updateBalance(userId: string, balance: number) {
   }
 }
 
+export async function updateBybitUid(userId: string, bybitUid: string | null) {
+  try {
+    const res = await backendFetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        bybitUid,
+      }),
+    })
+
+    if (!res.ok) {
+      return { error: "Failed to update Bybit UID" }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error("Failed to update Bybit UID:", error)
+    return { error: "Failed to update Bybit UID" }
+  }
+}
+
 export async function deleteUserAction(userId: string) {
   try {
-    await deleteUser(userId)
-    revalidatePath("/admin/users")
+    const res = await backendFetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      method: "DELETE",
+    })
+
+    if (!res.ok) {
+      return { error: "Failed to delete user" }
+    }
+
     return { success: true }
   } catch (error) {
     console.error("Failed to delete user:", error)
@@ -51,14 +90,17 @@ export async function deleteUserAction(userId: string) {
 
 export async function toggleBanAction(userId: string, isBanned: boolean) {
   try {
-    const admin = await getSessionUser()
-    await toggleUserBan(userId, isBanned)
-    await logAction(userId, isBanned ? "BAN" : "UNBAN", JSON.stringify({
-      targetUserId: userId,
-      initiatorUserId: admin?.id,
-      status: isBanned ? "banned" : "unbanned",
-    }))
-    revalidatePath("/admin/users")
+    const res = await backendFetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        isBanned,
+      }),
+    })
+
+    if (!res.ok) {
+      return { error: "Failed to update ban status" }
+    }
+
     return { success: true }
   } catch (error) {
     console.error("Failed to update ban status:", error)
@@ -66,12 +108,24 @@ export async function toggleBanAction(userId: string, isBanned: boolean) {
   }
 }
 
-export async function fetchUserLogs(userId: string) {
+export async function fetchUserLogs(userId: string): Promise<FetchUserLogsResult> {
   try {
-    const logs = await getUserLogs(userId)
-    return { success: true, logs }
+    const res = await backendFetch(`/api/admin/users/${encodeURIComponent(userId)}/logs`, {
+      method: "GET",
+    })
+
+    if (!res.ok) {
+      return { success: false, error: "Failed to fetch logs" }
+    }
+
+    const json = (await res.json()) as { logs?: UserLog[]; error?: string }
+    if (!json.logs) {
+      return { success: false, error: json.error || "Failed to fetch logs" }
+    }
+
+    return { success: true, logs: json.logs }
   } catch (error) {
     console.error("Failed to fetch logs:", error)
-    return { error: "Failed to fetch logs" }
+    return { success: false, error: "Failed to fetch logs" }
   }
 }

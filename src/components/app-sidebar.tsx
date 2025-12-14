@@ -11,6 +11,9 @@ import {
   Settings,
   Wallet,
   LogIn,
+  CreditCard,
+  Megaphone,
+  Package,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -40,6 +43,11 @@ const data = {
       url: "/history", 
       icon: Search,
     },
+    {
+      title: "Пополнения",
+      url: "/topups",
+      icon: CreditCard,
+    },
   ],
   navAdmin: [
     {
@@ -58,9 +66,24 @@ const data = {
       icon: Users,
     },
     {
+      title: "Платежи",
+      url: "/admin/payments",
+      icon: Wallet,
+    },
+    {
       title: "Логи",
       url: "/admin/logs",
       icon: HelpCircle,
+    },
+    {
+      title: "Рассылка",
+      url: "/admin/broadcast",
+      icon: Megaphone,
+    },
+    {
+      title: "RBX Сток",
+      url: "/admin/rbx",
+      icon: Package,
     },
     {
       title: "Настройки",

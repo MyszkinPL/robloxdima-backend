@@ -1,3 +1,6 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { Overview } from "@/components/admin/overview"
 import { RecentSales } from "@/components/admin/recent-sales"
 import { DetailedStock } from "@/components/admin/detailed-stock"
@@ -10,74 +13,116 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { getAuthenticatedRbxClient } from "@/lib/api-client"
-import { getOrders } from "@/lib/db"
-import { BalanceResponse, StockResponse } from "@/lib/rbxcrate"
 import { Info } from "lucide-react"
+import { getBackendBaseUrl } from "@/lib/api"
 
-export const dynamic = "force-dynamic"
+type Order = {
+  id: string
+  userId: string
+  username: string
+  type: "gamepass" | "vip"
+  amount: number
+  price: number
+  status: "pending" | "completed" | "failed" | "processing"
+  createdAt: string
+  placeId: string
+}
 
-export default async function AdminPage() {
-  let balance = "0";
-  let stock = "0";
+export default function AdminPage() {
+  const [balance, setBalance] = useState("0")
+  const [stock, setStock] = useState("0")
+  const [orders, setOrders] = useState<Order[]>([])
+  const [ordersCount, setOrdersCount] = useState(0)
+  const [clientsCount, setClientsCount] = useState(0)
+  const [salesThisMonth, setSalesThisMonth] = useState(0)
+  const [chartData, setChartData] = useState<{ month: string; revenue: number }[]>([])
 
-  // Fetch API data
-  try {
-    const client = await getAuthenticatedRbxClient();
-    const [balanceData, stockData] = await Promise.all([
-      client.balance.get().catch(() => ({ balance: 0 } as BalanceResponse)), 
-      client.stock.getSummary().catch(() => ({ robuxAvailable: 0 } as unknown as StockResponse)), 
-    ]);
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      const baseUrl = getBackendBaseUrl()
+      const [balanceRes, stockRes, ordersRes] = await Promise.all([
+        fetch(`${baseUrl}/api/admin/rbx/balance`, {
+          method: "GET",
+          credentials: "include",
+        }),
+        fetch(`${baseUrl}/api/rbx/stock/summary`, {
+          method: "GET",
+          credentials: "include",
+        }),
+        fetch(`${baseUrl}/api/admin/orders`, {
+          method: "GET",
+          credentials: "include",
+        }),
+      ])
 
-    balance = balanceData.balance?.toString() || "0";
-    stock = stockData.robuxAvailable?.toString() || "0";
-  } catch (error) {
-    console.error("Failed to fetch RBXCrate data:", error);
-    // Fallback
-    balance = "0";
-    stock = "0";
-  }
+      if (!balanceRes.ok || !stockRes.ok || !ordersRes.ok) {
+        return
+      }
 
-  const orders = await getOrders()
+      const balanceJson = (await balanceRes.json()) as {
+        success?: boolean
+        balance?: number
+      }
+      const stockJson = (await stockRes.json()) as {
+        success?: boolean
+        robuxAvailable?: number
+      }
 
-  const ordersCount = orders.length;
-  const uniqueClients = new Set(orders.map(o => o.username));
-  const clientsCount = uniqueClients.size;
+      const ordersJson = (await ordersRes.json()) as {
+        orders?: Order[]
+        summary?: {
+          ordersCount?: number
+          clientsCount?: number
+          salesThisMonth?: number
+          monthlyRevenue?: number[]
+        }
+      }
 
-  // Calculate Chart Data
-  const months = [
-    "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
-    "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"
-  ];
+      if (cancelled) return
 
-  const chartDataMap = new Map<number, number>();
-  for (let i = 0; i < 12; i++) {
-    chartDataMap.set(i, 0);
-  }
+      setBalance((balanceJson.balance ?? 0).toString())
+      setStock((stockJson.robuxAvailable ?? 0).toString())
 
-  let salesThisMonth = 0;
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+      const ordersData = ordersJson.orders ?? []
+      const summary = ordersJson.summary ?? {}
 
-  orders.forEach(order => {
-    const date = new Date(order.createdAt);
-    const month = date.getMonth();
-    
-    // Only include current year for the monthly chart, or maybe last 12 months? 
-    // For simplicity, let's just aggregate all by month index (assuming 1 year view)
-    // or strictly current year. Let's stick to simple month aggregation for now.
-    const revenue = chartDataMap.get(month) || 0;
-    chartDataMap.set(month, revenue + order.price);
+      setOrders(ordersData)
+      setOrdersCount(summary.ordersCount ?? 0)
+      setClientsCount(summary.clientsCount ?? 0)
+      setSalesThisMonth(summary.salesThisMonth ?? 0)
 
-    if (month === currentMonth && date.getFullYear() === currentYear) {
-      salesThisMonth++;
+      const months = [
+        "Январь",
+        "Февраль",
+        "Март",
+        "Апрель",
+        "Май",
+        "Июнь",
+        "Июль",
+        "Август",
+        "Сентябрь",
+        "Октябрь",
+        "Ноябрь",
+        "Декабрь",
+      ]
+
+      const monthlyRevenue = Array.isArray(summary.monthlyRevenue)
+        ? summary.monthlyRevenue
+        : []
+
+      setChartData(
+        months.map((month, index) => ({
+          month,
+          revenue: monthlyRevenue[index] ?? 0,
+        })),
+      )
     }
-  });
-
-  const chartData = months.map((month, index) => ({
-    month,
-    revenue: chartDataMap.get(index) || 0
-  }));
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
@@ -85,37 +130,36 @@ export default async function AdminPage() {
         <Info className="h-4 w-4" />
         <AlertTitle>Информация для администратора</AlertTitle>
         <AlertDescription>
-          Не забудьте проверить баланс на RBXCrate перед запуском рекламы. Текущий курс закупки стабилен.
+          Не забудьте проверить баланс на RBXCrate перед запуском рекламы. Текущий курс закупки
+          стабилен.
         </AlertDescription>
       </Alert>
 
-      <SectionCards 
-        balance={balance} 
-        stock={stock} 
+      <SectionCards
+        balance={balance}
+        stock={stock}
         ordersCount={ordersCount}
         clientsCount={clientsCount}
       />
-      
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
           <CardHeader>
             <CardTitle>Обзор выручки</CardTitle>
-            <CardDescription>
-              График доходов по месяцам.
-            </CardDescription>
+            <CardDescription>График доходов по месяцам.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
             <Overview data={chartData} />
           </CardContent>
         </Card>
-        <Card className="col-span-3">
+        <Card className="flex flex-col">
           <CardHeader>
             <CardTitle>Недавние продажи</CardTitle>
             <CardDescription>
               Вы совершили {salesThisMonth} продаж в этом месяце.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0 md:pt-4">
             <RecentSales orders={orders} />
           </CardContent>
         </Card>

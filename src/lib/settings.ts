@@ -1,124 +1,142 @@
-import { prisma } from '@/lib/prisma';
-
-export interface Settings {
+export interface PublicSettings {
   rate: number;
   maintenance: boolean;
+  telegramBotUsername: string;
+  faq: string;
+  supportLink: string;
+  bybitStoreUid: string;
+  pricingMode: string;
+  markupType: string;
+  markupValue: number;
+}
+
+export interface AdminSettings extends PublicSettings {
   rbxKey: string;
   cryptoBotToken: string;
   cryptoBotTestnet: boolean;
   cryptoBotAllowedAssets: string;
   cryptoBotFiatCurrency: string;
   telegramBotToken: string;
-  telegramBotUsername: string;
-  faq: string; // JSON string
-  supportLink: string;
+  bybitApiKey: string;
+  bybitApiSecret: string;
+  bybitTestnet: boolean;
 }
 
-const DEFAULT_SETTINGS: Settings = {
+const DEFAULT_PUBLIC_SETTINGS: PublicSettings = {
   rate: 0.5,
   maintenance: false,
-  rbxKey: "",
-  cryptoBotToken: "",
-  cryptoBotTestnet: false,
-  cryptoBotAllowedAssets: "",
-  cryptoBotFiatCurrency: "RUB",
-  telegramBotToken: "",
   telegramBotUsername: "",
   faq: "[]",
   supportLink: "",
-};
+  bybitStoreUid: "",
+  pricingMode: "manual",
+  markupType: "percent",
+  markupValue: 0,
+}
 
-export async function getSettings(): Promise<Settings> {
-  const settings = await prisma.settings.findUnique({
-    where: { id: 1 }
-  });
+import { getBackendBaseUrl } from "./api"
 
-  if (!settings) {
-    // Initialize default settings if they don't exist
-    const newSettings = await prisma.settings.create({
-      data: {
-        id: 1,
-        ...DEFAULT_SETTINGS,
-        rbxKey: undefined, // Prisma handles optional/null
-        cryptoBotToken: undefined,
-        telegramBotToken: undefined,
-        telegramBotUsername: undefined,
-      }
-    });
-    
-      return {
-        rate: newSettings.rate,
-        maintenance: newSettings.maintenance,
-        rbxKey: newSettings.rbxKey || "",
-        cryptoBotToken: newSettings.cryptoBotToken || "",
-        cryptoBotTestnet: newSettings.cryptoBotTestnet,
-        cryptoBotAllowedAssets: newSettings.cryptoBotAllowedAssets || "",
-        cryptoBotFiatCurrency: newSettings.cryptoBotFiatCurrency || "RUB",
-        telegramBotToken: newSettings.telegramBotToken || "",
-        telegramBotUsername: newSettings.telegramBotUsername || "",
-        faq: newSettings.faq || "[]",
-        supportLink: newSettings.supportLink || "",
-      };
-    }
+export async function getSettings(): Promise<PublicSettings> {
+  const baseUrl = getBackendBaseUrl()
 
-    return {
-      rate: settings.rate,
-      maintenance: settings.maintenance,
-      rbxKey: settings.rbxKey || "",
-      cryptoBotToken: settings.cryptoBotToken || "",
-      cryptoBotTestnet: settings.cryptoBotTestnet,
-      cryptoBotAllowedAssets: settings.cryptoBotAllowedAssets || "",
-      cryptoBotFiatCurrency: settings.cryptoBotFiatCurrency || "RUB",
-      telegramBotToken: settings.telegramBotToken || "",
-      telegramBotUsername: settings.telegramBotUsername || "",
-      faq: settings.faq || "[]",
-      supportLink: settings.supportLink || "",
-    };
+  const res = await fetch(`${baseUrl}/api/settings/public`, {
+    method: "GET",
+    credentials: "include",
+  })
+
+  if (!res.ok) {
+    return DEFAULT_PUBLIC_SETTINGS
   }
 
-export async function updateSettings(newSettings: Partial<Settings>): Promise<Settings> {
-  const updated = await prisma.settings.upsert({
-    where: { id: 1 },
-    update: {
-      rate: newSettings.rate,
-      maintenance: newSettings.maintenance,
-      rbxKey: newSettings.rbxKey,
-      cryptoBotToken: newSettings.cryptoBotToken,
-      cryptoBotTestnet: newSettings.cryptoBotTestnet,
-      cryptoBotAllowedAssets: newSettings.cryptoBotAllowedAssets,
-      cryptoBotFiatCurrency: newSettings.cryptoBotFiatCurrency,
-      telegramBotToken: newSettings.telegramBotToken,
-      telegramBotUsername: newSettings.telegramBotUsername,
-      faq: newSettings.faq,
-      supportLink: newSettings.supportLink,
-    },
-    create: {
-      id: 1,
-      rate: newSettings.rate ?? DEFAULT_SETTINGS.rate,
-      maintenance: newSettings.maintenance ?? DEFAULT_SETTINGS.maintenance,
-      rbxKey: newSettings.rbxKey,
-      cryptoBotToken: newSettings.cryptoBotToken,
-      cryptoBotTestnet: newSettings.cryptoBotTestnet ?? DEFAULT_SETTINGS.cryptoBotTestnet,
-      cryptoBotAllowedAssets: newSettings.cryptoBotAllowedAssets,
-      cryptoBotFiatCurrency: newSettings.cryptoBotFiatCurrency ?? DEFAULT_SETTINGS.cryptoBotFiatCurrency,
-      telegramBotToken: newSettings.telegramBotToken,
-      telegramBotUsername: newSettings.telegramBotUsername,
-      faq: newSettings.faq,
-      supportLink: newSettings.supportLink,
-    }
-  });
+  const fromApi = (await res.json()) as Partial<PublicSettings>
 
   return {
-    rate: updated.rate,
-    maintenance: updated.maintenance,
-    rbxKey: updated.rbxKey || "",
-    cryptoBotToken: updated.cryptoBotToken || "",
-    cryptoBotTestnet: updated.cryptoBotTestnet,
-    cryptoBotAllowedAssets: updated.cryptoBotAllowedAssets || "",
-    cryptoBotFiatCurrency: updated.cryptoBotFiatCurrency || "RUB",
-    telegramBotToken: updated.telegramBotToken || "",
-    telegramBotUsername: updated.telegramBotUsername || "",
-    faq: updated.faq || "[]",
-    supportLink: updated.supportLink || "",
+    rate: fromApi.rate ?? DEFAULT_PUBLIC_SETTINGS.rate,
+    maintenance: fromApi.maintenance ?? DEFAULT_PUBLIC_SETTINGS.maintenance,
+    telegramBotUsername: fromApi.telegramBotUsername ?? "",
+    faq: fromApi.faq ?? "[]",
+    supportLink: fromApi.supportLink ?? "",
+    bybitStoreUid: fromApi.bybitStoreUid ?? DEFAULT_PUBLIC_SETTINGS.bybitStoreUid,
+    pricingMode: fromApi.pricingMode ?? DEFAULT_PUBLIC_SETTINGS.pricingMode,
+    markupType: fromApi.markupType ?? DEFAULT_PUBLIC_SETTINGS.markupType,
+    markupValue: fromApi.markupValue ?? DEFAULT_PUBLIC_SETTINGS.markupValue,
   };
+}
+
+export async function getAdminSettings(): Promise<AdminSettings> {
+  const baseUrl = getBackendBaseUrl()
+
+  const res = await fetch(`${baseUrl}/api/admin/settings`, {
+    method: "GET",
+    credentials: "include",
+  })
+
+  if (!res.ok) {
+    throw new Error("Failed to load admin settings")
+  }
+
+  const json = (await res.json()) as { settings?: Partial<AdminSettings> }
+  const fromApi = json.settings ?? {}
+
+  return {
+    rate: fromApi.rate ?? DEFAULT_PUBLIC_SETTINGS.rate,
+    maintenance: fromApi.maintenance ?? DEFAULT_PUBLIC_SETTINGS.maintenance,
+    telegramBotUsername: fromApi.telegramBotUsername ?? "",
+    faq: fromApi.faq ?? DEFAULT_PUBLIC_SETTINGS.faq,
+    supportLink: fromApi.supportLink ?? DEFAULT_PUBLIC_SETTINGS.supportLink,
+    bybitStoreUid: fromApi.bybitStoreUid ?? DEFAULT_PUBLIC_SETTINGS.bybitStoreUid,
+    rbxKey: fromApi.rbxKey ?? "",
+    cryptoBotToken: fromApi.cryptoBotToken ?? "",
+    cryptoBotTestnet: fromApi.cryptoBotTestnet ?? false,
+    cryptoBotAllowedAssets: fromApi.cryptoBotAllowedAssets ?? "",
+    cryptoBotFiatCurrency: fromApi.cryptoBotFiatCurrency ?? "RUB",
+    telegramBotToken: fromApi.telegramBotToken ?? "",
+    bybitApiKey: fromApi.bybitApiKey ?? "",
+    bybitApiSecret: fromApi.bybitApiSecret ?? "",
+    bybitTestnet: fromApi.bybitTestnet ?? false,
+    pricingMode: fromApi.pricingMode ?? DEFAULT_PUBLIC_SETTINGS.pricingMode,
+    markupType: fromApi.markupType ?? DEFAULT_PUBLIC_SETTINGS.markupType,
+    markupValue: fromApi.markupValue ?? DEFAULT_PUBLIC_SETTINGS.markupValue,
+  };
+}
+
+export async function updateSettings(newSettings: Partial<AdminSettings>): Promise<AdminSettings> {
+  const baseUrl = getBackendBaseUrl()
+
+  const res = await fetch(`${baseUrl}/api/admin/settings`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(newSettings),
+  })
+
+  if (!res.ok) {
+    throw new Error("Failed to update settings")
+  }
+
+  const json = (await res.json()) as { settings?: Partial<AdminSettings> }
+  const updated = json.settings ?? {}
+
+  return {
+    rate: updated.rate ?? DEFAULT_PUBLIC_SETTINGS.rate,
+    maintenance: updated.maintenance ?? DEFAULT_PUBLIC_SETTINGS.maintenance,
+    telegramBotUsername: updated.telegramBotUsername ?? "",
+    faq: updated.faq ?? DEFAULT_PUBLIC_SETTINGS.faq,
+    supportLink: updated.supportLink ?? DEFAULT_PUBLIC_SETTINGS.supportLink,
+    bybitStoreUid: updated.bybitStoreUid ?? DEFAULT_PUBLIC_SETTINGS.bybitStoreUid,
+    rbxKey: updated.rbxKey ?? "",
+    cryptoBotToken: updated.cryptoBotToken ?? "",
+    cryptoBotTestnet: updated.cryptoBotTestnet ?? false,
+    cryptoBotAllowedAssets: updated.cryptoBotAllowedAssets ?? "",
+    cryptoBotFiatCurrency: updated.cryptoBotFiatCurrency ?? "RUB",
+    telegramBotToken: updated.telegramBotToken ?? "",
+    bybitApiKey: updated.bybitApiKey ?? "",
+    bybitApiSecret: updated.bybitApiSecret ?? "",
+    bybitTestnet: updated.bybitTestnet ?? false,
+    pricingMode: updated.pricingMode ?? DEFAULT_PUBLIC_SETTINGS.pricingMode,
+    markupType: updated.markupType ?? DEFAULT_PUBLIC_SETTINGS.markupType,
+    markupValue: updated.markupValue ?? DEFAULT_PUBLIC_SETTINGS.markupValue,
+  }
 }

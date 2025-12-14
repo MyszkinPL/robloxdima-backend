@@ -73,6 +73,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+import { getBackendBaseUrl } from "@/lib/api"
+
 function OrderActionsCell({ row }: { row: { original: OrderData } }) {
   const order = row.original
   const [detailsOpen, setDetailsOpen] = React.useState(false)
@@ -92,7 +94,8 @@ function OrderActionsCell({ row }: { row: { original: OrderData } }) {
     try {
       setIsLoadingDetails(true)
       setDetails(null)
-      const res = await fetch("/api/admin/rbx/orders/info", {
+      const backendBaseUrl = getBackendBaseUrl()
+      const res = await fetch(`${backendBaseUrl}/api/admin/rbx/orders/info`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -119,7 +122,9 @@ function OrderActionsCell({ row }: { row: { original: OrderData } }) {
       setDetailsOpen(true)
     } catch (error) {
       console.error("Failed to fetch order info", error)
-      toast.error("Ошибка получения деталей заказа")
+      const message =
+        error instanceof Error ? error.message : "Неизвестная ошибка"
+      toast.error(`Ошибка: ${message}`)
     } finally {
       setIsLoadingDetails(false)
     }
@@ -131,7 +136,8 @@ function OrderActionsCell({ row }: { row: { original: OrderData } }) {
     }
     try {
       setIsCancelling(true)
-      const res = await fetch("/api/admin/rbx/orders/cancel", {
+      const backendBaseUrl = getBackendBaseUrl()
+      const res = await fetch(`${backendBaseUrl}/api/admin/rbx/orders/cancel`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -149,7 +155,9 @@ function OrderActionsCell({ row }: { row: { original: OrderData } }) {
       toast.success("Запрос на отмену заказа отправлен в RBXCrate")
     } catch (error) {
       console.error("Failed to cancel order", error)
-      toast.error("Ошибка отмены заказа")
+      const message =
+        error instanceof Error ? error.message : "Неизвестная ошибка"
+      toast.error(`Ошибка: ${message}`)
     } finally {
       setIsCancelling(false)
     }
@@ -541,7 +549,7 @@ export function DataTable<TData, TValue>({
         {table.getColumn("price") && (
           <div className="flex items-center gap-2">
             <Input
-              type="number"
+              type="text"
               inputMode="decimal"
               placeholder="Цена от"
               className="w-[110px]"
@@ -562,7 +570,7 @@ export function DataTable<TData, TValue>({
               }}
             />
             <Input
-              type="number"
+              type="text"
               inputMode="decimal"
               placeholder="до"
               className="w-[110px]"

@@ -8,7 +8,8 @@ import { toast } from "sonner"
 import { RussianRuble } from "lucide-react"
 import { TelegramLogin } from "@/components/auth/telegram-login"
 import { WalletDialog } from "@/components/wallet/wallet-dialog"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { getBackendBaseUrl } from "@/lib/api"
 
 interface User {
   id: string
@@ -28,6 +29,8 @@ export function PurchaseForm({ rate, user, botName }: PurchaseFormProps) {
   const [isWalletOpen, setIsWalletOpen] = useState(false)
   const [isPending, setIsPending] = useState(false)
   const [orderType, setOrderType] = useState<"gamepass" | "vip">("gamepass")
+  const [isTelegramMiniApp, setIsTelegramMiniApp] = useState(false)
+  const [isAuthorizing, setIsAuthorizing] = useState(false)
   
   const price = amount * rate
   const balance = user?.balance || 0
@@ -44,15 +47,25 @@ export function PurchaseForm({ rate, user, botName }: PurchaseFormProps) {
     ).Telegram?.WebApp
     if (!tg || !tg.initData) return
 
+    setIsTelegramMiniApp(true)
+
     let cancelled = false
 
     const authorize = async () => {
+      const baseUrl = getBackendBaseUrl()
+      if (!baseUrl) {
+        toast.error("BACKEND_URL не настроен для миниаппы")
+        return
+      }
+      const url = `${baseUrl}/api/auth/telegram-mini`
       try {
-        const res = await fetch("/api/auth/telegram-mini", {
+        setIsAuthorizing(true)
+        const res = await fetch(url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
+          credentials: "include",
           body: JSON.stringify({ initData: tg.initData }),
         })
 
@@ -60,9 +73,17 @@ export function PurchaseForm({ rate, user, botName }: PurchaseFormProps) {
 
         if (!cancelled && res.ok && data.success) {
           window.location.reload()
+        } else if (!cancelled) {
+          toast.error(data.error || "Не удалось авторизоваться через миниаппу")
         }
       } catch (error) {
-        console.error("Telegram mini app auth error:", error)
+        if (!cancelled) {
+          toast.error("Ошибка авторизации через Telegram")
+        }
+      } finally {
+        if (!cancelled) {
+          setIsAuthorizing(false)
+        }
       }
     }
 
@@ -89,27 +110,45 @@ export function PurchaseForm({ rate, user, botName }: PurchaseFormProps) {
 
       const username = formData.get("username")
       const amountValue = Number(formData.get("amount"))
-      const placeIdValue = Number(formData.get("placeId"))
+      let placeIdRaw = formData.get("placeId")
 
-      if (!username || !amountValue || !placeIdValue) {
+      if (!username || !amountValue || !placeIdRaw) {
         toast.error("Заполните все поля")
+        return
+      }
+
+      if (typeof placeIdRaw === "string" && placeIdRaw.includes("roblox.com")) {
+        const match = placeIdRaw.match(/\/games\/(\d+)/)
+        if (match) {
+          placeIdRaw = match[1]
+        }
+      }
+
+      if (!/^\d+$/.test(String(placeIdRaw))) {
+        toast.error("Некорректный ID плейса. Введите только цифры.")
         return
       }
 
       const payload = {
         username,
         amount: amountValue,
-        placeId: placeIdValue,
+        placeId: placeIdRaw,
       }
 
-      const endpoint =
-        orderType === "vip" ? "/api/orders/vip-server" : "/api/orders"
+      const baseUrl = getBackendBaseUrl()
+      if (!baseUrl) {
+        toast.error("Бэкенд недоступен. Проверьте конфигурацию BACKEND_URL.")
+        return
+      }
+      const path = orderType === "vip" ? "/api/orders/vip-server" : "/api/orders"
+      const endpoint = `${baseUrl}${path}`
 
       const res = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify(payload),
       })
 
@@ -119,10 +158,13 @@ export function PurchaseForm({ rate, user, botName }: PurchaseFormProps) {
         toast.error(data.error || "Ошибка создания заказа")
       } else {
         toast.success("Заказ успешно создан! ID: " + data.orderId)
+        window.location.reload()
       }
     } catch (error) {
       console.error("Error creating order:", error)
-      toast.error("Произошла ошибка при создании заказа")
+      const message =
+        error instanceof Error ? error.message : "Неизвестная ошибка"
+      toast.error(`Ошибка: ${message}`)
     } finally {
       setIsPending(false)
     }
@@ -148,9 +190,8 @@ export function PurchaseForm({ rate, user, botName }: PurchaseFormProps) {
             <Input 
               id="amount" 
               name="amount" 
-              type="number" 
-              min={10} 
-              max={100000}
+              type="text"
+              inputMode="numeric"
               value={amount}
               onChange={(e) => setAmount(parseInt(e.target.value) || 0)}
               required 
@@ -162,26 +203,32 @@ export function PurchaseForm({ rate, user, botName }: PurchaseFormProps) {
 
           <div className="space-y-2">
             <Label>Тип заказа</Label>
-            <ToggleGroup
-              type="single"
+            <Tabs
               value={orderType}
               onValueChange={(value) => {
                 if (!value) return
                 setOrderType(value as "gamepass" | "vip")
               }}
-              variant="outline"
-              size="sm"
             >
-              <ToggleGroupItem value="gamepass">
-                Gamepass
-              </ToggleGroupItem>
-              <ToggleGroupItem value="vip">
-                VIP сервер
-              </ToggleGroupItem>
-            </ToggleGroup>
-            <p className="text-xs text-muted-foreground">
-              Выберите, что хотите заказать: Gamepass или VIP сервер.
-            </p>
+              <TabsList className="w-full">
+                <TabsTrigger value="gamepass">
+                  Gamepass
+                </TabsTrigger>
+                <TabsTrigger value="vip">
+                  VIP сервер
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="gamepass">
+                <p className="text-xs text-muted-foreground">
+                  Заказ Robux через Gamepass.
+                </p>
+              </TabsContent>
+              <TabsContent value="vip">
+                <p className="text-xs text-muted-foreground">
+                  Заказ Robux через VIP сервер.
+                </p>
+              </TabsContent>
+            </Tabs>
           </div>
 
           <div className="space-y-2">
@@ -189,7 +236,8 @@ export function PurchaseForm({ rate, user, botName }: PurchaseFormProps) {
             <Input 
               id="placeId" 
               name="placeId" 
-              type="number" 
+              type="text"
+              inputMode="numeric"
               placeholder="123456789" 
               required 
             />
@@ -237,25 +285,33 @@ export function PurchaseForm({ rate, user, botName }: PurchaseFormProps) {
       </div>
       
       {user ? (
-        <Button 
-          type="submit" 
-          className="w-full" 
+        <Button
+          type="submit"
+          className="w-full"
           disabled={isPending}
           variant={missingAmount > 0 ? "secondary" : "default"}
         >
-          {isPending 
-            ? "Обработка..." 
-            : missingAmount > 0 
-              ? `Пополнить баланс (+${missingAmount.toFixed(2)} ₽)` 
+          {isPending
+            ? "Обработка..."
+            : missingAmount > 0
+              ? `Пополнить баланс (+${missingAmount.toFixed(2)} ₽)`
               : "Купить (с баланса)"}
         </Button>
       ) : (
         <div className="space-y-2">
           <div className="flex items-center justify-center p-2 border rounded-lg bg-background">
+            {isTelegramMiniApp ? (
+              <span className="text-sm text-muted-foreground">
+                {isAuthorizing
+                  ? "Авторизация через Telegram..."
+                  : "Ожидание авторизации через Telegram"}
+              </span>
+            ) : (
               <TelegramLogin botName={botName} />
+            )}
           </div>
           <p className="text-center text-xs text-muted-foreground">
-              Нажимая кнопку, вы соглашаетесь с правилами сервиса
+            Нажимая кнопку, вы соглашаетесь с правилами сервиса
           </p>
         </div>
       )}

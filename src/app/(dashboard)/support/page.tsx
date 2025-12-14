@@ -1,3 +1,6 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -11,16 +14,27 @@ import { ExternalLink, MessageCircle, Send } from "lucide-react"
 import Link from "next/link"
 import { getSettings } from "@/lib/settings"
 
-export const dynamic = 'force-dynamic'
+export default function SupportPage() {
+  const [botLink, setBotLink] = useState("#")
+  const [supportLink, setSupportLink] = useState("#")
 
-export default async function SupportPage() {
-  const settings = await getSettings()
-  
-  const botLink = settings.telegramBotUsername 
-    ? `https://t.me/${settings.telegramBotUsername}`
-    : "#"
-    
-  const supportLink = settings.supportLink || "#"
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      const settings = await getSettings()
+      if (cancelled) return
+      setBotLink(
+        settings.telegramBotUsername
+          ? `https://t.me/${settings.telegramBotUsername}`
+          : "#",
+      )
+      setSupportLink(settings.supportLink || "#")
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 max-w-4xl mx-auto w-full">
@@ -48,10 +62,10 @@ export default async function SupportPage() {
             </p>
           </CardContent>
           <CardFooter>
-            <Button className="w-full" asChild disabled={!settings.telegramBotUsername}>
+            <Button className="w-full" asChild disabled={botLink === "#"}>
               <Link href={botLink} target="_blank">
                 <Send className="mr-2 size-4" />
-                {settings.telegramBotUsername ? "Запустить бота" : "Бот не настроен"}
+                {botLink === "#" ? "Бот не настроен" : "Запустить бота"}
               </Link>
             </Button>
           </CardFooter>
@@ -75,10 +89,10 @@ export default async function SupportPage() {
             </p>
           </CardContent>
           <CardFooter>
-            <Button variant="outline" className="w-full" asChild disabled={!settings.supportLink}>
+            <Button variant="outline" className="w-full" asChild disabled={supportLink === "#"}>
               <Link href={supportLink} target="_blank">
                 <Send className="mr-2 size-4" />
-                {settings.supportLink ? "Написать в поддержку" : "Контакт не настроен"}
+                {supportLink === "#" ? "Контакт не настроен" : "Написать в поддержку"}
               </Link>
             </Button>
           </CardFooter>

@@ -18,7 +18,7 @@ const chartConfig = {
 
 export function Overview({ data }: { data: { month: string; revenue: number }[] }) {
   return (
-    <ChartContainer config={chartConfig} className="min-h-[350px] w-full">
+    <ChartContainer config={chartConfig} className="h-[220px] w-full sm:h-[260px] lg:h-[280px]">
       <BarChart accessibilityLayer data={data}>
         <CartesianGrid vertical={false} />
         <XAxis

@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/sidebar"
 import { WalletDialog } from "@/components/wallet/wallet-dialog"
 import { useState } from "react"
+import { getBackendBaseUrl } from "@/lib/api"
 
 export function NavUser({
   user,
@@ -106,7 +107,8 @@ export function NavUser({
             <DropdownMenuItem
               onSelect={async () => {
                 try {
-                  const res = await fetch("/api/logout", { method: "POST" })
+                  const backendBaseUrl = getBackendBaseUrl()
+                  const res = await fetch(`${backendBaseUrl}/api/logout`, { method: "POST", credentials: "include" })
                   if (!res.ok) {
                     throw new Error("Logout failed")
                   }

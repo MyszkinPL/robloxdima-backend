@@ -1,30 +1,25 @@
-import { cookies } from 'next/headers';
-import { getUser, User } from './db';
-
-const SESSION_COOKIE_NAME = 'session_user_id';
+import type { User } from "./db"
+import { backendFetch } from "./api"
 
 export async function getSessionUser(): Promise<User | null> {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-
-  if (!userId) return null;
-
-  const user = await getUser(userId);
-  return user || null;
-}
-
-export async function setSessionUser(userId: string) {
-  const cookieStore = await cookies();
-  // Set cookie for 30 days
-  cookieStore.set(SESSION_COOKIE_NAME, userId, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24 * 30,
-    path: '/',
-  });
+  try {
+    const res = await backendFetch("/api/me", { method: "GET" })
+    if (!res.ok) {
+      return null
+    }
+    const json = (await res.json()) as { user?: User }
+    return json.user ?? null
+  } catch {
+    return null
+  }
 }
 
 export async function clearSession() {
-  const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE_NAME);
+  try {
+    await backendFetch("/api/logout", { method: "POST" })
+  } catch {
+  }
+}
+
+export async function setSessionUser() {
 }

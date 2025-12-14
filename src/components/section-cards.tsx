@@ -1,5 +1,4 @@
-import { ShoppingCart, Users, Package, Coins } from "lucide-react"
-import { RobuxIcon } from "@/components/robux-icon"
+import { ShoppingCart, Users, Package, Coins, DollarSign } from "lucide-react"
 
 import {
   Card,
@@ -26,12 +25,15 @@ export function SectionCards({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
-            Баланс API
+            Баланс API (USD)
           </CardTitle>
           <Coins className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold flex items-center gap-1">{balance} <RobuxIcon className="w-6 h-6" /></div>
+          <div className="text-2xl font-bold flex items-center gap-1">
+            {balance}
+            <DollarSign className="w-5 h-5 text-muted-foreground" />
+          </div>
           <p className="text-xs text-muted-foreground">
             Доступно для вывода
           </p>
@@ -71,12 +73,15 @@ export function SectionCards({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
-            Сток (Запасы)
+            Сток (Запасы, Robux)
           </CardTitle>
           <Package className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold flex items-center gap-1">{stock} <RobuxIcon className="w-6 h-6" /></div>
+          <div className="text-2xl font-bold flex items-center gap-1">
+            {stock}
+            <Package className="w-5 h-5 text-muted-foreground" />
+          </div>
           <p className="text-xs text-muted-foreground">
             Общий резерв робуксов
           </p>
