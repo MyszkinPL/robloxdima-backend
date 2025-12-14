@@ -30,6 +30,7 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json()
+    console.log("PATCH /api/admin/settings body:", body)
     const { 
       rate, 
       buyRate,
@@ -55,7 +56,8 @@ export async function PATCH(req: Request) {
     } = body
 
     // Validate if needed
-
+    
+    // Use findFirst to handle cases where ID might not be 1 or to ensure we get the single settings row
     const existing = await prisma.settings.findFirst()
 
     let updated

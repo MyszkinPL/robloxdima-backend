@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const rawAmount = Number(body.amount)
     const method = body.method === "paypalych" ? "paypalych" : "cryptobot"
+    const subMethod = body.subMethod // "sbp" | "card" | undefined
 
     if (!rawAmount || rawAmount <= 0) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 })
@@ -106,6 +107,7 @@ export async function POST(req: NextRequest) {
         payer_pays_commission: 1, // Customer pays commission
         success_url: "https://rbtrade.org/payment/success",
         fail_url: "https://rbtrade.org/payment/fail",
+        payment_method: subMethod === "sbp" ? "SBP" : subMethod === "card" ? "BANK_CARD" : undefined,
       })
 
       paymentUrl = bill.link_page_url

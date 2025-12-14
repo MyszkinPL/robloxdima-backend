@@ -1,6 +1,7 @@
 import { Prisma, User as PrismaUser, Order as PrismaOrder, Payment as PrismaPayment } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getSettings } from './settings';
+import { RbxCrateClient } from './rbxcrate/client';
 
 export { prisma };
 
@@ -149,7 +150,39 @@ export async function getOrder(id: string): Promise<Order | undefined> {
 
 export async function createOrder(order: Omit<Order, 'id' | 'createdAt' | 'status' | 'cost'>): Promise<Order> {
   const settings = await getSettings();
-  const cost = order.amount * (settings.buyRate || 0);
+  let cost = 0;
+
+  // Try to calculate dynamic cost if API key is present
+  if (settings.rbxKey) {
+    try {
+      const client = new RbxCrateClient(settings.rbxKey);
+      const detailedStock = await client.stock.getDetailed();
+      
+      if (detailedStock && detailedStock.length > 0) {
+        // Find best rate (lowest)
+        const bestOffer = detailedStock.sort((a, b) => a.rate - b.rate)[0];
+        
+        let ratePerOne = bestOffer.rate;
+        // Heuristic: if rate > 10, it's likely per 1000 Robux (e.g. 500 RUB)
+        // if rate <= 10, it's likely per 1 Robux (e.g. 0.5 RUB)
+        if (ratePerOne > 10) {
+          ratePerOne = ratePerOne / 1000;
+        }
+        
+        cost = order.amount * ratePerOne;
+      } else {
+        // Fallback to manual buyRate if stock is empty
+        cost = order.amount * (settings.buyRate || 0);
+      }
+    } catch (error) {
+      console.error("Failed to calculate dynamic cost:", error);
+      // Fallback to manual buyRate if API fails
+      cost = order.amount * (settings.buyRate || 0);
+    }
+  } else {
+    // Fallback to manual buyRate if no API key
+    cost = order.amount * (settings.buyRate || 0);
+  }
 
   const created = await prisma.order.create({
     data: {
