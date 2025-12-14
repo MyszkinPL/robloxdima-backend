@@ -1,9 +1,13 @@
 
-export interface PaypalychRequestParams extends Record<string, string | number | boolean | null | undefined> {}
+export interface PaypalychRequestParams extends Record<string, string | number | boolean | null | undefined> {
+  // Allow any other properties
+  [key: string]: string | number | boolean | null | undefined
+}
 
 export interface PaypalychResponse<T> {
   success: boolean
   data?: T
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any
 }
 

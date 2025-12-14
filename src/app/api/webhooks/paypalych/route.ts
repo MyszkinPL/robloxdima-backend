@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getSettings } from "@/lib/settings"
 import crypto from "crypto"
-import { Payment } from "@/lib/db"
 
 // PayPalych Postback Data
 interface PaypalychPostback {

@@ -74,12 +74,13 @@ export async function POST(req: NextRequest) {
     }
 
     const contentType = req.headers.get("content-type") || ""
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let body: any = {}
 
     if (contentType.includes("application/json")) {
       try {
         body = JSON.parse(bodyText)
-      } catch (e) {
+      } catch {
         body = {}
       }
     } else if (contentType.includes("application/x-www-form-urlencoded")) {

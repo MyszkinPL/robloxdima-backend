@@ -16,5 +16,8 @@ export async function GET() {
     isStarsEnabled: settings.isStarsEnabled,
     isPaypalychEnabled: settings.isPaypalychEnabled,
     referralPercent: settings.referralPercent,
+    paypalychCommissionCard: settings.paypalychCommissionCard,
+    paypalychCommissionSBP: settings.paypalychCommissionSBP,
+    cryptoBotCommission: settings.cryptoBotCommission,
   })
 }

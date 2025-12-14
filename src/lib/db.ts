@@ -156,7 +156,7 @@ export async function getOrderByRbxId(rbxOrderId: string): Promise<Order | undef
   return order ? mapOrder(order) : undefined;
 }
 
-export async function createOrder(order: Omit<Order, 'id' | 'createdAt' | 'status' | 'cost'>): Promise<Order> {
+export async function createOrder(order: Omit<Order, 'createdAt' | 'status' | 'cost'> & { id?: string }): Promise<Order> {
   const settings = await getSettings();
   let cost = 0;
 
@@ -194,6 +194,7 @@ export async function createOrder(order: Omit<Order, 'id' | 'createdAt' | 'statu
 
   const created = await prisma.order.create({
     data: {
+      id: order.id,
       userId: order.userId,
       username: order.username,
       type: order.type,

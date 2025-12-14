@@ -40,7 +40,9 @@ export const bill = {
     return request<{
       success: boolean
       data: Payment[]
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       links: any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       meta: any
     }>("GET", "/bill/payments", { id, ...params })
   },
@@ -55,7 +57,9 @@ export const bill = {
     return request<{
       success: boolean
       data: Bill[]
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       links: any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       meta: any
     }>("GET", "/bill/search", params)
   },

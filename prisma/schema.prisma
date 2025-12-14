@@ -104,6 +104,9 @@ model Settings {
   isPaypalychEnabled  Boolean @default(false)
   paypalychShopId     String?
   paypalychToken      String?
+  paypalychCommissionCard Float @default(0)
+  paypalychCommissionSBP  Float @default(0)
+  cryptoBotCommission     Float @default(0)
 
   @@map("settings")
 }

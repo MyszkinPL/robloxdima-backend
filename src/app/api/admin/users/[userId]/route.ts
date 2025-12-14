@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/session"
-import { prisma } from "@/lib/prisma"
 import {
   deleteUser,
   logAction,

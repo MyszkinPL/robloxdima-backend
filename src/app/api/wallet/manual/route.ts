@@ -3,7 +3,6 @@ import { createPayment, Payment, getUser } from "@/lib/db"
 import { getSessionUser } from "@/lib/session"
 import { rateLimit } from "@/lib/ratelimit"
 import { getSettings } from "@/lib/settings"
-import { prisma } from "@/lib/prisma"
 import crypto from "crypto"
 
 export async function POST(req: NextRequest) {
@@ -61,7 +60,7 @@ export async function POST(req: NextRequest) {
 
     const amount = Math.ceil(rawAmount * 100) / 100
 
-    let providerData = body.providerData || {}
+    const providerData = body.providerData || {}
 
     // Generate a unique ID for manual payment
     const paymentId = crypto.randomUUID()

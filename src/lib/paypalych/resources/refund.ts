@@ -31,7 +31,9 @@ export const refund = {
     return request<{
       success: boolean
       data: Refund[]
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       links: any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       meta: any
     }>("GET", "/refund/search", params)
   },

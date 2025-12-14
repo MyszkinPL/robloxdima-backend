@@ -26,27 +26,30 @@ export function proxy(request: NextRequest) {
     "http://localhost:5173",
   ]
 
-  if (isApiRequest) {
-    const response = NextResponse.next()
-
-    if (origin && allowedOrigins.includes(origin)) {
-      response.headers.set("Access-Control-Allow-Origin", origin)
-      response.headers.set("Access-Control-Allow-Credentials", "true")
-      response.headers.set("Vary", "Origin")
-    }
-
     if (request.method === "OPTIONS") {
+      const response = new NextResponse(null, { status: 204 })
+      if (origin && allowedOrigins.includes(origin)) {
+        response.headers.set("Access-Control-Allow-Origin", origin)
+        response.headers.set("Access-Control-Allow-Credentials", "true")
+      }
       response.headers.set(
         "Access-Control-Allow-Methods",
         "GET,POST,PUT,PATCH,DELETE,OPTIONS",
       )
       response.headers.set(
         "Access-Control-Allow-Headers",
-        "Content-Type, Authorization",
+        "Content-Type, Authorization, x-bot-token, x-telegram-id",
       )
       response.headers.set("Access-Control-Max-Age", "86400")
-      response.headers.set("Access-Control-Allow-Credentials", "true")
       return response
+    }
+
+    const response = NextResponse.next()
+
+    if (origin && allowedOrigins.includes(origin)) {
+      response.headers.set("Access-Control-Allow-Origin", origin)
+      response.headers.set("Access-Control-Allow-Credentials", "true")
+      response.headers.set("Vary", "Origin")
     }
 
     return response

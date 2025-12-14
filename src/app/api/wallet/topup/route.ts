@@ -6,7 +6,6 @@ import { getSessionUser } from "@/lib/session"
 import { rateLimit } from "@/lib/ratelimit"
 import { getSettings } from "@/lib/settings"
 import { prisma } from "@/lib/prisma"
-import { v4 as uuidv4 } from "uuid"
 
 export async function POST(req: NextRequest) {
   try {
@@ -117,8 +116,16 @@ export async function POST(req: NextRequest) {
       if (!settings.isCryptoBotEnabled) {
         return NextResponse.json({ error: "Метод оплаты временно недоступен" }, { status: 400 })
       }
+
+      let invoiceAmount = amount
+      if (settings.cryptoBotCommission > 0) {
+        invoiceAmount = amount + (amount * settings.cryptoBotCommission / 100)
+        // Round to 2 decimals to be safe, though createInvoice might handle it
+        invoiceAmount = Math.ceil(invoiceAmount * 100) / 100
+      }
+
       const invoice = await createInvoice(
-        amount,
+        invoiceAmount,
         description,
         user.id,
         "viewItem",

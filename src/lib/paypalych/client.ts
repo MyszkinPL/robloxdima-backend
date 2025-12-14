@@ -6,7 +6,7 @@ const BASE_URL = "https://pal24.pro/api/v1"
 
 export async function request<T>(method: string, endpoint: string, params: PaypalychRequestParams = {}): Promise<T> {
   const settings = await getSettings()
-  // @ts-ignore - settings will be updated
+  // @ts-expect-error - settings will be updated
   const token = settings.paypalychToken
 
   if (!token) {
@@ -20,7 +20,7 @@ export async function request<T>(method: string, endpoint: string, params: Paypa
     "Accept": "application/json",
   }
 
-  let options: RequestInit = {
+  const options: RequestInit = {
     method,
     headers,
   }

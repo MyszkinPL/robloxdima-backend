@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { v4 as uuidv4 } from "uuid"
 import { getSessionUser } from "@/lib/session"
 import { getSettings } from "@/lib/settings"
-import { addOrder, Order, refundOrder, getUser } from "@/lib/db"
+import { addOrder, Order, refundOrder, getUser, updateOrder } from "@/lib/db"
 import { prisma } from "@/lib/prisma"
 import { getAuthenticatedRbxClient } from "@/lib/api-client"
 import { getCachedStock } from "@/lib/stock-cache"
@@ -139,12 +139,16 @@ export async function POST(req: NextRequest) {
       await addOrder(newOrder)
 
       const client = await getAuthenticatedRbxClient()
-      await client.orders.createVipServer({
+      const rbxResponse = await client.orders.createVipServer({
         orderId,
         robloxUsername,
         robuxAmount: amount,
         placeId,
       })
+
+      if (rbxResponse.success && rbxResponse.data?.orderId) {
+        await updateOrder(orderId, { rbxOrderId: rbxResponse.data.orderId })
+      }
 
       return NextResponse.json({ success: true, orderId })
     } catch (innerError) {

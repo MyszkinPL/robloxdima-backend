@@ -22,6 +22,9 @@ export interface Settings {
   isPaypalychEnabled: boolean;
   paypalychShopId: string;
   paypalychToken: string;
+  paypalychCommissionCard: number;
+  paypalychCommissionSBP: number;
+  cryptoBotCommission: number;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -46,6 +49,9 @@ const DEFAULT_SETTINGS: Settings = {
   isPaypalychEnabled: false,
   paypalychShopId: "",
   paypalychToken: "",
+  paypalychCommissionCard: 0,
+  paypalychCommissionSBP: 0,
+  cryptoBotCommission: 0,
 };
 
 export async function getSettings(): Promise<Settings> {
@@ -90,6 +96,9 @@ export async function getSettings(): Promise<Settings> {
       isPaypalychEnabled: newSettings.isPaypalychEnabled,
       paypalychShopId: newSettings.paypalychShopId || "",
       paypalychToken: newSettings.paypalychToken || "",
+      paypalychCommissionCard: newSettings.paypalychCommissionCard,
+      paypalychCommissionSBP: newSettings.paypalychCommissionSBP,
+      cryptoBotCommission: newSettings.cryptoBotCommission,
     };
   }
 
@@ -115,6 +124,9 @@ export async function getSettings(): Promise<Settings> {
     isPaypalychEnabled: settings.isPaypalychEnabled,
     paypalychShopId: settings.paypalychShopId || "",
     paypalychToken: settings.paypalychToken || "",
+    paypalychCommissionCard: settings.paypalychCommissionCard,
+    paypalychCommissionSBP: settings.paypalychCommissionSBP,
+    cryptoBotCommission: settings.cryptoBotCommission,
   };
 }
 
@@ -143,6 +155,9 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
       isPaypalychEnabled: newSettings.isPaypalychEnabled,
       paypalychShopId: newSettings.paypalychShopId || null,
       paypalychToken: newSettings.paypalychToken || null,
+      paypalychCommissionCard: newSettings.paypalychCommissionCard,
+      paypalychCommissionSBP: newSettings.paypalychCommissionSBP,
+      cryptoBotCommission: newSettings.cryptoBotCommission,
     },
     create: {
       id: 1,
@@ -167,6 +182,9 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
       isPaypalychEnabled: newSettings.isPaypalychEnabled ?? DEFAULT_SETTINGS.isPaypalychEnabled,
       paypalychShopId: newSettings.paypalychShopId,
       paypalychToken: newSettings.paypalychToken,
+      paypalychCommissionCard: newSettings.paypalychCommissionCard ?? DEFAULT_SETTINGS.paypalychCommissionCard,
+      paypalychCommissionSBP: newSettings.paypalychCommissionSBP ?? DEFAULT_SETTINGS.paypalychCommissionSBP,
+      cryptoBotCommission: newSettings.cryptoBotCommission ?? DEFAULT_SETTINGS.cryptoBotCommission,
     }
   });
 
@@ -192,5 +210,8 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
     isPaypalychEnabled: updated.isPaypalychEnabled,
     paypalychShopId: updated.paypalychShopId || "",
     paypalychToken: updated.paypalychToken || "",
+    paypalychCommissionCard: updated.paypalychCommissionCard,
+    paypalychCommissionSBP: updated.paypalychCommissionSBP,
+    cryptoBotCommission: updated.cryptoBotCommission,
   };
 }
