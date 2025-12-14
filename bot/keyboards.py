@@ -148,11 +148,15 @@ def payment_method_keyboard(amount: float, settings: dict | None = None) -> Inli
   rows = []
   
   # Default to true if settings not loaded for some reason, or handle strictly?
-  # Let's assume defaults: CryptoBot=True, Bybit=False (as requested)
   is_crypto_enabled = settings.get("isCryptoBotEnabled", True) if settings else True
+  is_paypalych_enabled = settings.get("isPaypalychEnabled", False) if settings else False
 
   if is_crypto_enabled:
     rows.append([InlineKeyboardButton(text="🤖 Crypto Bot (Авто)", callback_data=f"topup:method:cryptobot:{amount}")])
+
+  if is_paypalych_enabled:
+    rows.append([InlineKeyboardButton(text="📱 СБП (Быстро)", callback_data=f"topup:method:paypalych:sbp:{amount}")])
+    rows.append([InlineKeyboardButton(text="💳 Карта РФ", callback_data=f"topup:method:paypalych:card:{amount}")])
 
   rows.append([InlineKeyboardButton(text="⬅️ Отмена", callback_data="flow:cancel")])
 

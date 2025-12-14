@@ -51,6 +51,7 @@ model Order {
   cost      Float    @default(0) // Cost of goods sold (what we paid)
   status    String   // 'pending' | 'completed' | 'cancelled'
   placeId   String
+  rbxOrderId String?  @unique
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)

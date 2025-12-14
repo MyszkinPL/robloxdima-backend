@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/session"
 import { getAuthenticatedRbxClient } from "@/lib/api-client"
-import { getUser } from "@/lib/db"
+import { getUser, getOrder } from "@/lib/db"
 import { getSettings } from "@/lib/settings"
 
 export async function POST(req: NextRequest) {
@@ -39,8 +39,11 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const localOrder = await getOrder(orderId)
+    const targetId = localOrder?.rbxOrderId || orderId
+
     const client = await getAuthenticatedRbxClient()
-    const result = await client.orders.getInfo({ orderId })
+    const result = await client.orders.getInfo({ orderId: targetId })
 
     return NextResponse.json({ success: true, result })
   } catch (error) {

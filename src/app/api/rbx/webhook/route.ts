@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSettings } from "@/lib/settings"
-import { getOrder, refundOrder, updateOrder } from "@/lib/db"
+import { getOrder, getOrderByRbxId, refundOrder, updateOrder } from "@/lib/db"
 import { isValidRbxcrateSign, RBXCRATE_WEBHOOK_IPS } from "@/lib/rbxcrate/utils/verify"
 import { OrderStatus, RbxCrateWebhook } from "@/lib/rbxcrate/types"
 import { sendTelegramNotification } from "@/lib/telegram"
@@ -58,11 +58,23 @@ export async function POST(req: NextRequest) {
 
     // Try finding the order
     let order = await getOrder(orderId)
+
+    // Check by rbxOrderId if not found
+    if (!order) {
+      order = await getOrderByRbxId(orderId)
+      if (order) orderId = order.id
+    }
     
     if (!order && body.uuid) {
       // Try the uuid field
       order = await getOrder(body.uuid)
       if (order) orderId = body.uuid
+      
+      // Try the uuid field as rbxOrderId
+      if (!order) {
+        order = await getOrderByRbxId(body.uuid)
+        if (order) orderId = order.id
+      }
     }
 
     if (!order) {

@@ -276,6 +276,65 @@ async def handle_topup_cryptobot(callback: CallbackQuery, api: BackendApiClient)
     )
 
 
+@router.callback_query(F.data.startswith("topup:method:paypalych:"))
+async def handle_topup_paypalych(callback: CallbackQuery, api: BackendApiClient) -> None:
+    if not callback.from_user:
+        return
+    
+    parts = callback.data.split(":")
+    # Expected format: topup:method:paypalych:sbp:100 or topup:method:paypalych:card:100
+    if len(parts) < 5:
+        await callback.answer("Ошибка данных", show_alert=True)
+        return
+
+    sub_method = parts[3] # sbp or card
+    try:
+        amount = float(parts[4])
+    except ValueError:
+        await callback.answer("Ошибка суммы", show_alert=True)
+        return
+
+    try:
+        data = await api.create_topup(callback.from_user.id, amount, method="paypalych", sub_method=sub_method)
+    except httpx.HTTPStatusError as e:
+        text_error = "❌ Не удалось создать счёт. Отправьте /start и попробуйте ещё раз."
+        try:
+            if e.response is not None:
+                payload = e.response.json()
+                api_error = payload.get("error")
+                if isinstance(api_error, str) and api_error:
+                    text_error = f"❌ {api_error}"
+        except Exception:
+            pass
+        await callback.message.edit_text(text_error)
+        return
+    except Exception:
+        await callback.message.edit_text("❌ Не удалось создать счёт. Отправьте /start и попробуйте ещё раз.")
+        return
+
+    payment_url = data.get("paymentUrl")
+    if not payment_url:
+        await callback.message.edit_text("❌ Не удалось создать счёт. Попробуйте позже.")
+        return
+    
+    method_name = "СБП" if sub_method == "sbp" else "Картой"
+    
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=f"💸 Оплатить ({method_name})", url=payment_url)],
+            [InlineKeyboardButton(text="⬅️ Отмена", callback_data="flow:cancel")],
+        ]
+    )
+
+    await callback.message.edit_text(
+        f"💳 <b>Счёт Paypalych создан!</b>\n\n"
+        f"💰 <b>К оплате:</b> <code>{amount} ₽</code>\n"
+        f"🏦 <b>Способ:</b> {method_name}\n\n"
+        "👇 Нажмите кнопку ниже для перехода к оплате:",
+        reply_markup=keyboard,
+    )
+
+
 
 
 

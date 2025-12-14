@@ -87,6 +87,7 @@ function mapOrder(order: PrismaOrder): Order {
     status: order.status as Order['status'],
     createdAt: order.createdAt.toISOString(),
     placeId: order.placeId,
+    rbxOrderId: order.rbxOrderId || undefined,
   };
 }
 
@@ -148,6 +149,13 @@ export async function getOrder(id: string): Promise<Order | undefined> {
   return order ? mapOrder(order) : undefined;
 }
 
+export async function getOrderByRbxId(rbxOrderId: string): Promise<Order | undefined> {
+  const order = await prisma.order.findUnique({
+    where: { rbxOrderId }
+  });
+  return order ? mapOrder(order) : undefined;
+}
+
 export async function createOrder(order: Omit<Order, 'id' | 'createdAt' | 'status' | 'cost'>): Promise<Order> {
   const settings = await getSettings();
   let cost = 0;
@@ -194,6 +202,7 @@ export async function createOrder(order: Omit<Order, 'id' | 'createdAt' | 'statu
       cost: cost,
       status: 'pending',
       placeId: order.placeId,
+      rbxOrderId: order.rbxOrderId,
     }
   });
   return mapOrder(created);

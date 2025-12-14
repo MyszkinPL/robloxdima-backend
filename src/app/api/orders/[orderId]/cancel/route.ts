@@ -51,7 +51,7 @@ export async function POST(
        try {
          const client = await getAuthenticatedRbxClient()
          // Note: RbxCrate might throw if order cannot be cancelled
-         await client.orders.cancel({ orderId })
+         await client.orders.cancel({ orderId: order.rbxOrderId || order.id })
        } catch (error) {
          // If it's 404, we can assume it's safe to cancel locally
          // If it's other error (e.g. "Already completed"), we should not cancel

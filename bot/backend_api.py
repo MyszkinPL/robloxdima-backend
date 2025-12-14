@@ -97,10 +97,14 @@ class BackendApiClient:
 
 
 
-  async def create_topup(self, telegram_id: int, amount: float) -> Dict[str, Any]:
+  async def create_topup(self, telegram_id: int, amount: float, method: str = "cryptobot", sub_method: Optional[str] = None) -> Dict[str, Any]:
+    json_data = {"amount": amount, "method": method}
+    if sub_method:
+        json_data["subMethod"] = sub_method
+
     res = await self._client.post(
       "/api/wallet/topup",
-      json={"amount": amount},
+      json=json_data,
       headers=self._headers_for_user(telegram_id),
     )
     res.raise_for_status()

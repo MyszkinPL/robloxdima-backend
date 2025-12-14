@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/session"
 import { getAuthenticatedRbxClient } from "@/lib/api-client"
-import { refundOrder } from "@/lib/db"
+import { refundOrder, getOrder } from "@/lib/db"
 
 export async function POST(req: NextRequest) {
   try {
@@ -24,8 +24,15 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const localOrder = await getOrder(orderId)
+    if (!localOrder) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 })
+    }
+
+    const targetId = localOrder.rbxOrderId || localOrder.id
+
     const client = await getAuthenticatedRbxClient()
-    const result = await client.orders.cancel({ orderId })
+    const result = await client.orders.cancel({ orderId: targetId })
 
     const refundResult = await refundOrder(orderId, {
       source: "admin_cancel",
