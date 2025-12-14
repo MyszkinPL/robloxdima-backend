@@ -24,7 +24,7 @@ export class RbxCrateClient {
   public balance: BalanceService;
 
   constructor(apiKey: string, options?: RbxCrateClientOptions) {
-    const baseUrl = options?.baseUrl || "https://rbxcrate.com/api";
+    const baseUrl = options?.baseUrl || "https://rbxcave.com/api";
     const timeout = options?.timeout || 10000;
 
     this.http = new HttpClient(baseUrl, apiKey, timeout);
