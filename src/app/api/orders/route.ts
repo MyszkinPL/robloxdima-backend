@@ -104,9 +104,9 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    if (activeOrders > 0) {
+    if (activeOrders >= 3) {
       return NextResponse.json(
-        { error: "У вас уже есть активный заказ. Дождитесь его завершения." },
+        { error: "У вас уже есть 3 активных заказа. Дождитесь их завершения." },
         { status: 400 }
       )
     }

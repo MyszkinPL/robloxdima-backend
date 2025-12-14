@@ -16,14 +16,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // Get all processing orders
-    // We check both pending and processing. Pending might not have been sent to RbxCrate yet?
-    // Usually 'pending' means we are waiting for something. 'processing' means sent to RbxCrate.
-    // If we use 'pending' for "created but not paid/processed", we should only check 'processing'.
-    // Let's assume 'processing' is the state where we wait for RbxCrate.
+    // Get all pending and processing orders
     const orders = await prisma.order.findMany({
       where: {
-        status: "processing",
+        status: { in: ["pending", "processing"] },
       },
     })
 

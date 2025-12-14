@@ -34,8 +34,8 @@ async def handle_order_start(callback: CallbackQuery, state: FSMContext, api: Ba
   try:
     orders = await api.get_my_orders(user_id)
     active = [o for o in orders if o.get("status") in ["pending", "processing"]]
-    if active:
-      await callback.answer("У вас уже есть активный заказ. Дождитесь его завершения.", show_alert=True)
+    if len(active) >= 3:
+      await callback.answer("У вас уже есть 3 активных заказа. Дождитесь их завершения.", show_alert=True)
       return
   except Exception:
     pass
