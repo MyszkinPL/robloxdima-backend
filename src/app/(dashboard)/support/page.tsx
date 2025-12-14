@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -12,29 +11,22 @@ import {
 } from "@/components/ui/card"
 import { ExternalLink, MessageCircle, Send } from "lucide-react"
 import Link from "next/link"
-import { getSettings } from "@/lib/settings"
+import { getBackendBaseUrl } from "@/lib/api"
+import useSWR from "swr"
+
+const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((res) => res.json())
 
 export default function SupportPage() {
-  const [botLink, setBotLink] = useState("#")
-  const [supportLink, setSupportLink] = useState("#")
+  const { data: settings } = useSWR(
+    `${getBackendBaseUrl()}/api/settings/public`,
+    fetcher,
+    { refreshInterval: 60000 }
+  )
 
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      const settings = await getSettings()
-      if (cancelled) return
-      setBotLink(
-        settings.telegramBotUsername
-          ? `https://t.me/${settings.telegramBotUsername}`
-          : "#",
-      )
-      setSupportLink(settings.supportLink || "#")
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const botLink = settings?.telegramBotUsername
+    ? `https://t.me/${settings.telegramBotUsername}`
+    : "#"
+  const supportLink = settings?.supportLink || "#"
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8 max-w-4xl mx-auto w-full">

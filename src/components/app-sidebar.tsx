@@ -48,6 +48,11 @@ const data = {
       url: "/topups",
       icon: CreditCard,
     },
+    {
+      title: "Рефералы",
+      url: "/referrals",
+      icon: Users,
+    },
   ],
   navAdmin: [
     {

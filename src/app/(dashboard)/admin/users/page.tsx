@@ -1,41 +1,24 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import UsersClient, { User } from "./users-client"
 import { getBackendBaseUrl } from "@/lib/api"
+import useSWR from "swr"
+
+const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((res) => res.json())
 
 export default function UsersPage({
   searchParams,
 }: {
   searchParams?: { userId?: string }
 }) {
-  const [users, setUsers] = useState<User[]>([])
+  const { data, mutate } = useSWR<{ users?: User[] }>(
+    `${getBackendBaseUrl()}/api/admin/users`,
+    fetcher,
+    { refreshInterval: 5000 }
+  )
 
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      const backendBaseUrl = getBackendBaseUrl()
-      const res = await fetch(`${backendBaseUrl}/api/admin/users`, {
-        method: "GET",
-        credentials: "include",
-      })
-      if (!res.ok) {
-        return
-      }
-      const usersJson = (await res.json()) as {
-        users?: User[]
-      }
-      if (!cancelled) {
-        setUsers(usersJson.users ?? [])
-      }
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
+  const users = data?.users ?? []
   const highlightUserId = searchParams?.userId || ""
 
-  return <UsersClient data={users} highlightUserId={highlightUserId} />
+  return <UsersClient data={users} highlightUserId={highlightUserId} onRefresh={mutate} />
 }

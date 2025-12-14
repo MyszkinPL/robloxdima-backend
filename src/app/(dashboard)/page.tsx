@@ -1,15 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { PurchaseForm } from "@/components/shop/purchase-form"
 import { ActiveOrders } from "@/components/shop/active-orders"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Activity, DollarSign, Package } from "lucide-react"
-import { getSettings } from "@/lib/settings"
-import { getSessionUser } from "@/lib/session"
 import { RobuxIcon } from "@/components/robux-icon"
 import type { Order, User } from "@/lib/db"
 import { getBackendBaseUrl } from "@/lib/api"
+import useSWR from "swr"
+
+const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((res) => res.json())
 
 function BalanceContent({
   user,
@@ -42,74 +42,41 @@ function BalanceContent({
 }
 
 export default function ShopPage() {
-  const [user, setUser] = useState<User | null>(null)
-  const [settings, setSettings] = useState<{
-    rate: number
-    maintenance: boolean
-    telegramBotUsername: string
-  } | null>(null)
-  const [stock, setStock] = useState(0)
-  const [orders, setOrders] = useState<Order[]>([])
+  const baseUrl = getBackendBaseUrl()
 
-  const fetchOrders = async () => {
-    const baseUrl = getBackendBaseUrl()
-    try {
-      const res = await fetch(`${baseUrl}/api/orders/my`, {
-        method: "GET",
-        credentials: "include",
-      })
-      if (res.ok) {
-        const json = (await res.json()) as { orders?: Order[] }
-        setOrders(json.orders ?? [])
-      }
-    } catch {
-    }
-  }
+  const { data: userData, mutate: mutateUser } = useSWR<{ user?: User }>(
+    `${baseUrl}/api/me`,
+    fetcher,
+    { refreshInterval: 5000 }
+  )
 
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      const [settingsData, sessionUser] = await Promise.all([
-        getSettings(),
-        getSessionUser(),
-      ])
-      if (cancelled) return
+  const { data: settingsData } = useSWR<{
+    rate?: number
+    maintenance?: boolean
+    telegramBotUsername?: string
+  }>(`${baseUrl}/api/settings/public`, fetcher, { refreshInterval: 10000 })
 
-      setSettings({
-        rate: settingsData.rate,
-        maintenance: settingsData.maintenance,
-        telegramBotUsername: settingsData.telegramBotUsername,
-      })
-      setUser(sessionUser)
+  const user = userData?.user ?? null
+  
+  const settings = settingsData ? {
+    rate: settingsData.rate ?? 0.5,
+    maintenance: settingsData.maintenance ?? false,
+    telegramBotUsername: settingsData.telegramBotUsername ?? "",
+  } : null
 
-      if (sessionUser) {
-        await fetchOrders()
-      }
+  const { data: ordersData, mutate: mutateOrders } = useSWR<{ orders?: Order[] }>(
+    user ? `${baseUrl}/api/orders/my` : null,
+    fetcher,
+    { refreshInterval: 5000 }
+  )
 
-      const baseUrl = getBackendBaseUrl()
-      try {
-        const res = await fetch(`${baseUrl}/api/rbx/stock/summary`, {
-          method: "GET",
-          credentials: "include",
-        })
-        if (res.ok) {
-          const json = (await res.json()) as {
-            success?: boolean
-            robuxAvailable?: number
-          }
-          if (json.success) {
-            setStock(json.robuxAvailable ?? 0)
-          }
-        }
-      } catch {
-        setStock(0)
-      }
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const { data: stockData } = useSWR<{
+    success?: boolean
+    robuxAvailable?: number
+  }>(`${baseUrl}/api/rbx/stock/summary`, fetcher, { refreshInterval: 10000 })
+
+  const stock = stockData?.robuxAvailable ?? 0
+  const orders = ordersData?.orders ?? []
 
   if (!settings) {
     return (
@@ -246,11 +213,15 @@ export default function ShopPage() {
               rate={settings.rate}
               user={user}
               botName={settings.telegramBotUsername}
+              onSuccess={() => {
+                mutateOrders()
+                mutateUser()
+              }}
             />
           </CardContent>
         </Card>
 
-        <ActiveOrders orders={orders} onOrderUpdated={fetchOrders} />
+        <ActiveOrders orders={orders} onOrderUpdated={() => mutateOrders()} />
       </div>
     </div>
   )

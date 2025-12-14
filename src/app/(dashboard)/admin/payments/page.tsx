@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { getBackendBaseUrl } from "@/lib/api"
+import useSWR from "swr"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -22,6 +23,8 @@ type AdminPayment = {
   method: string
   providerData?: string | null
 }
+
+const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((res) => res.json())
 
 function StatusBadge({ status }: { status: AdminPayment["status"] }) {
   if (status === "paid") {
@@ -69,41 +72,17 @@ function MethodLabel({ method }: { method: string }) {
 }
 
 export default function AdminPaymentsPage() {
-  const [payments, setPayments] = useState<AdminPayment[]>([])
-  const [loading, setLoading] = useState(true)
   const [methodFilter, setMethodFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [userFilter, setUserFilter] = useState<string>("")
 
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      try {
-        const backendBaseUrl = getBackendBaseUrl()
-        const res = await fetch(`${backendBaseUrl}/api/admin/payments`, {
-          method: "GET",
-          credentials: "include",
-        })
+  const { data: paymentsData, isLoading: loading } = useSWR<{ payments?: AdminPayment[] }>(
+    `${getBackendBaseUrl()}/api/admin/payments`,
+    fetcher,
+    { refreshInterval: 5000 }
+  )
 
-        if (!res.ok) {
-          return
-        }
-
-        const json = (await res.json()) as { payments?: AdminPayment[] }
-        if (!cancelled) {
-          setPayments(json.payments ?? [])
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const payments = paymentsData?.payments ?? []
 
   const filtered = useMemo(() => {
     return payments.filter((p) => {

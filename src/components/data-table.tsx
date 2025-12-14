@@ -19,6 +19,7 @@ import {
   IconLoader,
   IconAlertCircle,
   IconClock,
+  IconTrash,
 } from "@tabler/icons-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -31,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { useRouter } from "next/navigation"
 import {
   Table,
   TableBody,
@@ -76,6 +78,7 @@ import {
 import { getBackendBaseUrl } from "@/lib/api"
 
 function OrderActionsCell({ row }: { row: { original: OrderData } }) {
+  const router = useRouter()
   const order = row.original
   const [detailsOpen, setDetailsOpen] = React.useState(false)
   const [isLoadingDetails, setIsLoadingDetails] = React.useState(false)
@@ -88,6 +91,7 @@ function OrderActionsCell({ row }: { row: { original: OrderData } }) {
     error?: string
   } | null>(null)
   const [isCancelling, setIsCancelling] = React.useState(false)
+  const [isDeleting, setIsDeleting] = React.useState(false)
   const [logsOpen, setLogsOpen] = React.useState(false)
 
   const fetchDetails = async () => {
@@ -163,6 +167,33 @@ function OrderActionsCell({ row }: { row: { original: OrderData } }) {
     }
   }
 
+  const handleDelete = async () => {
+    if (!confirm("Вы уверены, что хотите удалить этот заказ? Это действие необратимо.")) {
+      return
+    }
+
+    setIsDeleting(true)
+    try {
+      const backendBaseUrl = getBackendBaseUrl()
+      const res = await fetch(`${backendBaseUrl}/api/admin/orders/${order.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+
+      if (res.ok) {
+        toast.success("Заказ удален")
+        router.refresh()
+      } else {
+        const json = await res.json()
+        toast.error(json.error || "Не удалось удалить заказ")
+      }
+    } catch (error) {
+      toast.error("Ошибка сети")
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <>
       <DropdownMenu>
@@ -207,8 +238,20 @@ function OrderActionsCell({ row }: { row: { original: OrderData } }) {
               void handleCancel()
             }}
             className="text-destructive"
+            disabled={isCancelling}
           >
-            {isCancelling ? "Отмена..." : "Отменить заказ на RBXCrate"}
+            Отменить заказ
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => {
+              void handleDelete()
+            }}
+            className="text-destructive"
+            disabled={isDeleting}
+          >
+            <IconTrash className="mr-2 h-4 w-4" />
+            Удалить заказ
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

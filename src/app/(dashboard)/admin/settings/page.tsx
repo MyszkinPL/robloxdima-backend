@@ -1,38 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import SettingsForm from "./settings-form"
-import { getAdminSettings, type AdminSettings } from "@/lib/settings"
+import { getAdminSettings } from "@/lib/settings"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import useSWR from "swr"
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<AdminSettings | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      try {
-        const data = await getAdminSettings()
-        if (!cancelled) {
-          setSettings(data)
-        }
-      } catch {
-        if (!cancelled) {
-          setError("Не удалось загрузить настройки")
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const { data: settings, error, isLoading: loading } = useSWR("adminSettings", () => getAdminSettings(), { refreshInterval: 5000 })
 
   if (loading) {
     return (

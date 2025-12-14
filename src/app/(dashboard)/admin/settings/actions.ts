@@ -27,6 +27,7 @@ export async function saveSettings(formData: FormData) {
   const pricingMode = (formData.get("pricingMode") as string) || "manual"
   const markupType = (formData.get("markupType") as string) || "percent"
   const markupValue = parseFloat((formData.get("markupValue") as string) || "0")
+  const referralPercent = parseFloat((formData.get("referralPercent") as string) || "5")
 
   if (pricingMode === "manual" && (rate === undefined || rate <= 0)) {
     return { error: "Некорректный курс валют" }
@@ -60,6 +61,7 @@ export async function saveSettings(formData: FormData) {
     pricingMode,
     markupType,
     markupValue,
+    referralPercent,
   })
   return { success: true }
 }

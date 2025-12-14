@@ -14,9 +14,9 @@ import { ru } from "date-fns/locale"
 import Link from "next/link"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Filter, Download, ListOrdered } from "lucide-react"
+import { Filter, Download, ListOrdered, ChevronLeft, ChevronRight, Search } from "lucide-react"
 import { getBackendBaseUrl } from "@/lib/api"
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import {
   Select,
   SelectContent,
@@ -25,6 +25,10 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { CheckCircle2, AlertTriangle, Ban, RefreshCcw, Info, Wallet } from "lucide-react"
+import useSWR from "swr"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
+
+const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((res) => res.json())
 
 function formatAction(action: string) {
   switch (action) {
@@ -99,6 +103,7 @@ function describeDetails(action: string, details: string | null, userId?: string
       initiatorUserId?: string
       externalStatus?: string
       externalError?: string
+      [key: string]: any
     }
 
     if (action === "order_refund" || action === "order_refund_initiated") {
@@ -200,19 +205,23 @@ function describeDetails(action: string, details: string | null, userId?: string
   }
 }
 
-export default function AdminLogsPage({
-  searchParams,
-}: {
-  searchParams?: { type?: string; q?: string; from?: string; to?: string; field?: string }
-}) {
-  const initialType = searchParams?.type ?? "all"
-  const initialQuery = searchParams?.q?.trim() ?? ""
-  const initialFrom = searchParams?.from ?? ""
-  const initialTo = searchParams?.to ?? ""
-  const initialField = searchParams?.field ?? "user"
+export default function AdminLogsPage() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
-  const [logs, setLogs] = useState<
-    {
+  const type = searchParams.get("type") || "all"
+  const page = parseInt(searchParams.get("page") || "1")
+  const limit = parseInt(searchParams.get("limit") || "50")
+  const query = searchParams.get("q") || ""
+  const field = searchParams.get("field") || "user"
+  const from = searchParams.get("from") || ""
+  const to = searchParams.get("to") || ""
+
+  const queryString = searchParams.toString()
+  
+  const { data, isLoading, mutate } = useSWR<{
+    logs: {
       id: string
       userId: string
       userName?: string | null
@@ -220,335 +229,264 @@ export default function AdminLogsPage({
       details: string | null
       createdAt: string
     }[]
-  >([])
-  const [type] = useState(initialType)
-  const [query, setQuery] = useState(initialQuery)
-  const [from, setFrom] = useState(initialFrom)
-  const [to, setTo] = useState(initialTo)
-  const [field, setField] = useState(initialField)
-
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      const baseUrl = getBackendBaseUrl()
-      const res = await fetch(`${baseUrl}/api/admin/logs`, {
-        method: "GET",
-        credentials: "include",
-      })
-      if (!res.ok) {
-        return
-      }
-      const json = (await res.json()) as {
-        logs?: {
-          id: string
-          userId: string
-          userName?: string | null
-          action: string
-          details: string | null
-          createdAt: string
-        }[]
-      }
-      if (!cancelled) {
-        setLogs(json.logs ?? [])
-      }
+    total: number
+    summary: {
+      total: number
+      refundCount: number
+      banCount: number
     }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const baseUrl = getBackendBaseUrl()
-  const exportHref = useMemo(() => {
-    const exportParams = new URLSearchParams()
-    exportParams.set("type", type)
-    if (query) {
-      exportParams.set("q", query)
-    }
-    if (field) {
-      exportParams.set("field", field)
-    }
-    if (from) {
-      exportParams.set("from", from)
-    }
-    if (to) {
-      exportParams.set("to", to)
-    }
-    return `${baseUrl}/api/admin/logs/export?${exportParams.toString()}`
-  }, [baseUrl, field, from, query, to, type])
-
-  const filtered = logs.filter((log) => {
-    if (type === "refunds") {
-      if (!(log.action === "order_refund" || log.action === "order_refund_initiated")) {
-        return false
-      }
-    } else if (type === "bans") {
-      if (!(log.action === "BAN" || log.action === "UNBAN")) {
-        return false
-      }
-    } else if (type === "bybit") {
-      if (log.action !== "bybit_deposit") {
-        return false
-      }
-    }
-
-    if (query) {
-      if (field === "order") {
-        if (!log.details || !log.details.includes(`"orderId":"${query}"`)) {
-          return false
-        }
-      } else if (field === "admin") {
-        if (!log.details || !log.details.includes(`"initiatorUserId":"${query}"`)) {
-          return false
-        }
-      } else {
-        const lower = query.toLowerCase()
-        const matchesUserId = log.userId.toLowerCase().includes(lower)
-        const matchesUserName = (log.userName ?? "").toLowerCase().includes(lower)
-        if (!matchesUserId && !matchesUserName) {
-          return false
-        }
-      }
-    }
-
-    if (from) {
-      const fromDate = new Date(from)
-      if (!Number.isNaN(fromDate.getTime())) {
-        if (new Date(log.createdAt) < fromDate) {
-          return false
-        }
-      }
-    }
-
-    if (to) {
-      const toDate = new Date(to)
-      if (!Number.isNaN(toDate.getTime())) {
-        const endOfDay = new Date(
-          toDate.getFullYear(),
-          toDate.getMonth(),
-          toDate.getDate(),
-          23,
-          59,
-          59,
-          999,
-        )
-        if (new Date(log.createdAt) > endOfDay) {
-          return false
-        }
-      }
-    }
-
-    return true
+  }>(`${getBackendBaseUrl()}/api/admin/logs?${queryString}`, fetcher, { 
+    refreshInterval: 10000,
+    keepPreviousData: true 
   })
 
-  const refundCount = logs.filter(
-    (log) => log.action === "order_refund" || log.action === "order_refund_initiated",
-  ).length
-  const banCount = logs.filter((log) => log.action === "BAN" || log.action === "UNBAN").length
+  const logs = data?.logs ?? []
+  const total = data?.total ?? 0
+  const totalPages = Math.ceil(total / limit)
+  const summary = data?.summary || { total: 0, refundCount: 0, banCount: 0 }
+
+  const updateSearch = (newParams: Record<string, string | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString())
+    Object.entries(newParams).forEach(([key, value]) => {
+      if (value === undefined || value === "") {
+        params.delete(key)
+      } else {
+        params.set(key, value)
+      }
+    })
+    // Reset page to 1 on filter change
+    if (!newParams.page) {
+        params.set("page", "1")
+    }
+    router.push(`${pathname}?${params.toString()}`)
+  }
+
+  const [localQuery, setLocalQuery] = useState(query)
+  const [localField, setLocalField] = useState(field)
+
+  // Sync local state with URL params
+  useEffect(() => {
+    setLocalQuery(query)
+  }, [query])
+  
+  useEffect(() => {
+    setLocalField(field)
+  }, [field])
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    updateSearch({ q: localQuery, field: localField })
+  }
+
+  const exportHref = useMemo(() => {
+    return `${getBackendBaseUrl()}/api/admin/logs/export?${queryString}`
+  }, [queryString])
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
       <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         <Card>
-          <CardHeader>
-            <CardTitle>Всего записей</CardTitle>
-            <CardDescription>Последние события аудита</CardDescription>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Всего записей</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{logs.length}</div>
+            <div className="text-2xl font-bold">{summary.total}</div>
+            <p className="text-xs text-muted-foreground">Последние события аудита</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader>
-            <CardTitle>Рефанды</CardTitle>
-            <CardDescription>order_refund / order_refund_initiated</CardDescription>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Рефанды</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{refundCount}</div>
+            <div className="text-2xl font-bold">{summary.refundCount}</div>
+            <p className="text-xs text-muted-foreground">order_refund / order_refund_initiated</p>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader>
-            <CardTitle>Баны</CardTitle>
-            <CardDescription>BAN / UNBAN</CardDescription>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Баны</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{banCount}</div>
+            <div className="text-2xl font-bold">{summary.banCount}</div>
+            <p className="text-xs text-muted-foreground">BAN / UNBAN</p>
           </CardContent>
         </Card>
       </div>
 
       <Card className="rounded-xl border bg-card text-card-foreground shadow">
-        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-col gap-3 w-full md:max-w-xl">
+        <CardHeader className="flex flex-col gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <CardTitle>Аудит действий</CardTitle>
-              <CardDescription>Логи по рефандам, банам и другим операциям</CardDescription>
+              <CardDescription>Логирование операций и действий пользователей</CardDescription>
             </div>
-            <form className="flex flex-wrap items-center gap-2" action="/admin/logs" method="get">
-              <input type="hidden" name="field" value={field} />
-              <Select value={field} onValueChange={setField}>
-                <SelectTrigger className="h-8 w-[150px] text-xs">
-                  <SelectValue placeholder="Поле" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="user">Пользователь</SelectItem>
-                  <SelectItem value="order">Заказ</SelectItem>
-                  <SelectItem value="admin">Админ</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input
-                name="q"
-                placeholder="Поиск"
-                className="w-[220px] max-w-full"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              <Input
-                type="date"
-                name="from"
-                className="w-[150px]"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-              />
-              <Input
-                type="date"
-                name="to"
-                className="w-[150px]"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-              />
-              <input type="hidden" name="type" value={type} />
-              <Button type="submit" variant="outline" size="icon" aria-label="Фильтровать">
-                <Filter className="h-4 w-4" />
+            <div className="flex gap-2">
+              <Button asChild variant="outline" size="sm" className="gap-2">
+                <a href={exportHref} download="admin-logs.csv">
+                  <Download className="h-4 w-4" />
+                  Экспорт
+                </a>
               </Button>
-            </form>
+              <Link
+                  href={{
+                    pathname: "/admin/orders",
+                    query: { refunded: "yes" },
+                  }}
+                >
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <ListOrdered className="h-4 w-4" />
+                    Заказы с рефандом
+                  </Button>
+                </Link>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2 pt-2 md:pt-0">
-            <Button asChild variant="outline" size="icon" aria-label="Экспорт CSV">
-              <a href={exportHref} download="admin-logs.csv">
-                <Download className="h-4 w-4" />
-              </a>
-            </Button>
-            <Link
-              href={{
-                pathname: "/admin/logs",
-                query: { type: "all", q: query || undefined, from: from || undefined, to: to || undefined },
-              }}
-            >
-              <Badge variant={type === "all" ? "default" : "outline"}>Все</Badge>
-            </Link>
-            <Link
-              href={{
-                pathname: "/admin/logs",
-                query: { type: "refunds", q: query || undefined, from: from || undefined, to: to || undefined },
-              }}
-            >
-              <Badge variant={type === "refunds" ? "default" : "outline"}>Рефанды</Badge>
-            </Link>
-            <Link
-              href={{
-                pathname: "/admin/logs",
-                query: { type: "bans", q: query || undefined, from: from || undefined, to: to || undefined },
-              }}
-            >
-              <Badge variant={type === "bans" ? "default" : "outline"}>Баны</Badge>
-            </Link>
-            <Link
-              href={{
-                pathname: "/admin/logs",
-                query: { type: "bybit", q: query || undefined, from: from || undefined, to: to || undefined },
-              }}
-            >
-              <Badge variant={type === "bybit" ? "default" : "outline"}>Bybit</Badge>
-            </Link>
-            <Link
-              href={{
-                pathname: "/admin/orders",
-                query: { refunded: "yes" },
-              }}
-            >
-              <Button variant="outline" size="icon" aria-label="Заказы с рефандом">
-                <ListOrdered className="h-4 w-4" />
-              </Button>
-            </Link>
+
+          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-muted/50 p-4 rounded-lg">
+             <div className="flex flex-wrap gap-2">
+                <Button 
+                    variant={type === "all" ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => updateSearch({ type: "all" })}
+                >
+                    Все
+                </Button>
+                <Button 
+                    variant={type === "refunds" ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => updateSearch({ type: "refunds" })}
+                >
+                    Рефанды
+                </Button>
+                <Button 
+                    variant={type === "bans" ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => updateSearch({ type: "bans" })}
+                >
+                    Баны
+                </Button>
+                <Button 
+                    variant={type === "bybit" ? "default" : "outline"} 
+                    size="sm"
+                    onClick={() => updateSearch({ type: "bybit" })}
+                >
+                    Bybit
+                </Button>
+             </div>
+             
+             <form onSubmit={handleSearch} className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                <Select value={localField} onValueChange={setLocalField}>
+                    <SelectTrigger className="h-9 w-[130px] text-xs">
+                        <SelectValue placeholder="Поле" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="user">Пользователь</SelectItem>
+                        <SelectItem value="order">Заказ</SelectItem>
+                        <SelectItem value="admin">Админ</SelectItem>
+                        <SelectItem value="all">Везде</SelectItem>
+                    </SelectContent>
+                </Select>
+                <div className="relative flex-1 md:w-[200px]">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        type="search"
+                        placeholder="Поиск..."
+                        className="w-full pl-9 h-9"
+                        value={localQuery}
+                        onChange={(e) => setLocalQuery(e.target.value)}
+                    />
+                </div>
+                <Input
+                    type="date"
+                    className="w-auto h-9"
+                    value={from}
+                    onChange={(e) => updateSearch({ from: e.target.value })}
+                />
+                <span className="text-muted-foreground">-</span>
+                <Input
+                    type="date"
+                    className="w-auto h-9"
+                    value={to}
+                    onChange={(e) => updateSearch({ to: e.target.value })}
+                />
+                <Button type="submit" size="sm" variant="secondary">
+                    Найти
+                </Button>
+             </form>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="hidden md:block rounded-md border">
-              <Table>
-                <TableHeader>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[180px]">Время</TableHead>
+                  <TableHead>Пользователь</TableHead>
+                  <TableHead>Действие</TableHead>
+                  <TableHead>Детали</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading && logs.length === 0 && (
+                     <TableRow>
+                        <TableCell colSpan={4} className="h-24 text-center">
+                            Загрузка...
+                        </TableCell>
+                     </TableRow>
+                )}
+                {!isLoading && logs.length === 0 && (
                   <TableRow>
-                    <TableHead className="w-[180px]">Время</TableHead>
-                    <TableHead>Пользователь</TableHead>
-                    <TableHead>Действие</TableHead>
-                    <TableHead>Детали</TableHead>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      Нет записей.
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="h-24 text-center">
-                        Нет записей.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {filtered.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="align-top text-sm text-muted-foreground">
-                        {format(new Date(log.createdAt), "dd.MM.yyyy HH:mm:ss", { locale: ru })}
-                      </TableCell>
-                      <TableCell className="align-top text-sm">
-                        <div className="flex flex-col">
-                          <span className="font-medium">{log.userName || "Неизвестно"}</span>
-                          <span className="text-xs text-muted-foreground">{log.userId}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="align-top text-sm">
-                        {formatAction(log.action)}
-                      </TableCell>
-                      <TableCell className="align-top text-sm">
-                        {describeDetails(log.action, log.details, log.userId)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-
-            <div className="grid gap-3 md:hidden">
-              {filtered.length === 0 && (
-                <div className="rounded-md border bg-card p-3 text-center text-sm text-muted-foreground">
-                  Нет записей.
-                </div>
-              )}
-              {filtered.map((log) => (
-                <div
-                  key={log.id}
-                  className="rounded-lg border bg-card p-3 text-sm space-y-2"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex flex-col">
-                      <span className="font-medium truncate max-w-[180px]">
-                        {log.userName || "Неизвестно"}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground truncate max-w-[200px]">
-                        {log.userId}
-                      </span>
-                    </div>
-                    <div className="flex-shrink-0">
+                )}
+                {logs.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="align-top text-sm text-muted-foreground whitespace-nowrap">
+                      {format(new Date(log.createdAt), "dd.MM.yyyy HH:mm:ss", { locale: ru })}
+                    </TableCell>
+                    <TableCell className="align-top text-sm">
+                      <div className="flex flex-col">
+                        <span className="font-medium">{log.userName || "Неизвестно"}</span>
+                        <span className="text-xs text-muted-foreground">{log.userId}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="align-top text-sm">
                       {formatAction(log.action)}
-                    </div>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {format(new Date(log.createdAt), "dd.MM.yyyy HH:mm:ss", { locale: ru })}
-                  </div>
-                  <div className="text-xs break-words">
-                    {describeDetails(log.action, log.details, log.userId)}
-                  </div>
-                </div>
-              ))}
+                    </TableCell>
+                    <TableCell className="align-top text-sm">
+                      {describeDetails(log.action, log.details, log.userId)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          
+          <div className="flex items-center justify-between space-x-2 py-4">
+            <div className="text-sm text-muted-foreground">
+                Показано {logs.length} из {total} записей (Стр. {page} из {totalPages || 1})
+            </div>
+            <div className="flex items-center space-x-2">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateSearch({ page: String(Math.max(1, page - 1)) })}
+                    disabled={page <= 1 || isLoading}
+                >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Назад
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => updateSearch({ page: String(page + 1) })}
+                    disabled={page >= totalPages || isLoading}
+                >
+                    Вперед
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
             </div>
           </div>
         </CardContent>

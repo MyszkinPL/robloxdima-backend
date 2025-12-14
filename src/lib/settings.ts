@@ -8,6 +8,7 @@ export interface PublicSettings {
   pricingMode: string;
   markupType: string;
   markupValue: number;
+  referralPercent: number;
 }
 
 export interface AdminSettings extends PublicSettings {
@@ -32,6 +33,7 @@ const DEFAULT_PUBLIC_SETTINGS: PublicSettings = {
   pricingMode: "manual",
   markupType: "percent",
   markupValue: 0,
+  referralPercent: 5,
 }
 
 import { getBackendBaseUrl } from "./api"
@@ -42,6 +44,7 @@ export async function getSettings(): Promise<PublicSettings> {
   const res = await fetch(`${baseUrl}/api/settings/public`, {
     method: "GET",
     credentials: "include",
+    cache: "no-store",
   })
 
   if (!res.ok) {
@@ -60,6 +63,7 @@ export async function getSettings(): Promise<PublicSettings> {
     pricingMode: fromApi.pricingMode ?? DEFAULT_PUBLIC_SETTINGS.pricingMode,
     markupType: fromApi.markupType ?? DEFAULT_PUBLIC_SETTINGS.markupType,
     markupValue: fromApi.markupValue ?? DEFAULT_PUBLIC_SETTINGS.markupValue,
+    referralPercent: fromApi.referralPercent ?? DEFAULT_PUBLIC_SETTINGS.referralPercent,
   };
 }
 
@@ -69,6 +73,7 @@ export async function getAdminSettings(): Promise<AdminSettings> {
   const res = await fetch(`${baseUrl}/api/admin/settings`, {
     method: "GET",
     credentials: "include",
+    cache: "no-store",
   })
 
   if (!res.ok) {
@@ -97,6 +102,7 @@ export async function getAdminSettings(): Promise<AdminSettings> {
     pricingMode: fromApi.pricingMode ?? DEFAULT_PUBLIC_SETTINGS.pricingMode,
     markupType: fromApi.markupType ?? DEFAULT_PUBLIC_SETTINGS.markupType,
     markupValue: fromApi.markupValue ?? DEFAULT_PUBLIC_SETTINGS.markupValue,
+    referralPercent: fromApi.referralPercent ?? DEFAULT_PUBLIC_SETTINGS.referralPercent,
   };
 }
 
@@ -138,5 +144,6 @@ export async function updateSettings(newSettings: Partial<AdminSettings>): Promi
     pricingMode: updated.pricingMode ?? DEFAULT_PUBLIC_SETTINGS.pricingMode,
     markupType: updated.markupType ?? DEFAULT_PUBLIC_SETTINGS.markupType,
     markupValue: updated.markupValue ?? DEFAULT_PUBLIC_SETTINGS.markupValue,
+    referralPercent: updated.referralPercent ?? DEFAULT_PUBLIC_SETTINGS.referralPercent,
   }
 }

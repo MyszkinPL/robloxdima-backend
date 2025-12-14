@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { backendFetch } from "@/lib/api"
+import { getBackendBaseUrl } from "@/lib/api"
+import useSWR from "swr"
+import { Loader2 } from "lucide-react"
 
 type DetailedStockItem = {
   product: string
@@ -11,58 +12,26 @@ type DetailedStockItem = {
   robuxReserved: number
 }
 
-type DetailedStockResponse = {
-  items?: DetailedStockItem[]
-}
+const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((res) => res.json())
 
 export function DetailedStock() {
-  const [data, setData] = useState<DetailedStockItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, error: swrError, isLoading } = useSWR<{ success?: boolean; stock?: any, error?: string }>(
+    `${getBackendBaseUrl()}/api/admin/rbx/stock/detailed`,
+    fetcher,
+    { refreshInterval: 10000 }
+  )
 
-  useEffect(() => {
-    let cancelled = false
+  // Handle different response structures
+  let items: DetailedStockItem[] = []
+  const stockData = data?.stock
 
-    const load = async () => {
-      try {
-        const res = await backendFetch("/api/admin/rbx/stock/detailed", {
-          method: "GET",
-        })
-        const json = (await res.json()) as {
-          success?: boolean
-          stock?: DetailedStockResponse
-          error?: string
-        }
+  if (Array.isArray(stockData)) {
+    items = stockData
+  } else if (stockData && Array.isArray(stockData.items)) {
+    items = stockData.items
+  }
 
-        if (!res.ok || !json.success) {
-          if (!cancelled) {
-            setError(json.error || "Не удалось загрузить склад RBXCrate")
-          }
-          return
-        }
-
-        const items = json.stock?.items || []
-        if (!cancelled) {
-          setData(items)
-        }
-      } catch (err) {
-        console.error("Failed to load detailed stock", err)
-        if (!cancelled) {
-          setError("Ошибка загрузки складских остатков")
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    }
-
-    void load()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const error = swrError?.message || data?.error
 
   return (
     <Card>
@@ -73,18 +42,25 @@ export function DetailedStock() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {loading && <p className="text-sm text-muted-foreground">Загрузка...</p>}
-        {!loading && error && (
+        {isLoading && (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
+        
+        {!isLoading && error && (
           <p className="text-sm text-destructive">
             {error}
           </p>
         )}
-        {!loading && !error && data.length === 0 && (
+        
+        {!isLoading && !error && items.length === 0 && (
           <p className="text-sm text-muted-foreground">
             Нет данных о складе.
           </p>
         )}
-        {!loading && !error && data.length > 0 && (
+        
+        {!isLoading && !error && items.length > 0 && (
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -95,9 +71,9 @@ export function DetailedStock() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.map((item, index) => (
+                {items.map((item, index) => (
                   <TableRow key={index}>
-                    <TableCell>{item.product}</TableCell>
+                    <TableCell>{item.product || `Пакет #${index + 1}`}</TableCell>
                     <TableCell className="text-right">{item.robuxAvailable}</TableCell>
                     <TableCell className="text-right">{item.robuxReserved}</TableCell>
                   </TableRow>

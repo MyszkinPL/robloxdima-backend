@@ -1,10 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { getBackendBaseUrl } from "@/lib/api"
 import { Loader2 } from "lucide-react"
+import useSWR from "swr"
 
 interface DetailedStockItem {
   rate: number
@@ -13,40 +14,19 @@ interface DetailedStockItem {
   totalRobuxAmount: number
 }
 
+const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((res) => res.json())
+
 export default function AdminRbxPage() {
-  const [loading, setLoading] = useState(true)
-  const [stock, setStock] = useState<DetailedStockItem[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const { data, error: swrError, isLoading } = useSWR<{ stock?: DetailedStockItem[], error?: string }>(
+    `${getBackendBaseUrl()}/api/admin/rbx/stock/detailed`,
+    fetcher,
+    { refreshInterval: 10000 }
+  )
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const backendBaseUrl = getBackendBaseUrl()
-        const res = await fetch(`${backendBaseUrl}/api/admin/rbx/stock/detailed`, {
-          method: "GET",
-          credentials: "include",
-        })
+  const stock = data?.stock || []
+  const error = swrError?.message || data?.error
 
-        if (!res.ok) {
-          throw new Error("Failed to fetch stock data")
-        }
-
-        const data = await res.json()
-        if (data.error) {
-          throw new Error(data.error)
-        }
-        
-        setStock(data.stock || [])
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Unknown error")
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

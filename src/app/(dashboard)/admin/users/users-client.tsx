@@ -126,7 +126,7 @@ function UserLogsDialog({ userId, open, onOpenChange }: { userId: string; open: 
   )
 }
 
-function UserActions({ user }: { user: User }) {
+function UserActions({ user, onRefresh }: { user: User; onRefresh?: () => void }) {
   const router = useRouter()
   const [showBalanceDialog, setShowBalanceDialog] = useState(false)
   const [showLogsDialog, setShowLogsDialog] = useState(false)
@@ -142,7 +142,7 @@ function UserActions({ user }: { user: User }) {
     const result = await toggleAdminRole(user.id, newRole)
     if (result.success) {
       toast.success(`Роль пользователя обновлена: ${newRole ? "Администратор" : "Пользователь"}`)
-      window.location.reload()
+      onRefresh ? onRefresh() : window.location.reload()
     } else {
       toast.error("Ошибка обновления роли")
     }
@@ -153,7 +153,7 @@ function UserActions({ user }: { user: User }) {
     const result = await toggleBanAction(user.id, newStatus)
     if (result.success) {
       toast.success(`Пользователь ${newStatus ? "забанен" : "разбанен"}`)
-      window.location.reload()
+      onRefresh ? onRefresh() : window.location.reload()
     } else {
       toast.error("Ошибка обновления статуса бана")
     }
@@ -163,7 +163,7 @@ function UserActions({ user }: { user: User }) {
     const result = await deleteUserAction(user.id)
     if (result.success) {
       toast.success("Пользователь удален")
-      window.location.reload()
+      onRefresh ? onRefresh() : window.location.reload()
     } else {
       toast.error("Ошибка удаления пользователя")
     }
@@ -183,7 +183,7 @@ function UserActions({ user }: { user: User }) {
     if (result.success) {
         toast.success("Баланс обновлен")
         setShowBalanceDialog(false)
-        window.location.reload()
+        onRefresh ? onRefresh() : window.location.reload()
     } else {
         toast.error("Ошибка обновления баланса")
     }
@@ -198,7 +198,7 @@ function UserActions({ user }: { user: User }) {
     if ((result as { success?: boolean }).success) {
       toast.success("Bybit UID обновлен")
       setShowBybitDialog(false)
-      window.location.reload()
+      onRefresh ? onRefresh() : window.location.reload()
     } else {
       toast.error("Ошибка обновления Bybit UID")
     }
@@ -366,7 +366,7 @@ function UserActions({ user }: { user: User }) {
   )
 }
 
-export const columns: ColumnDef<User>[] = [
+const getColumns = (onRefresh?: () => void): ColumnDef<User>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -451,14 +451,16 @@ export const columns: ColumnDef<User>[] = [
   {
     id: "actions",
     enableHiding: false,
-    cell: ({ row }) => <UserActions user={row.original} />,
+    cell: ({ row }) => <UserActions user={row.original} onRefresh={onRefresh} />,
   },
 ]
 
-export default function UsersClient({ data, highlightUserId }: { data: User[]; highlightUserId?: string }) {
+export default function UsersClient({ data, highlightUserId, onRefresh }: { data: User[]; highlightUserId?: string; onRefresh?: () => void }) {
   const [roleFilter, setRoleFilter] = useState<"all" | "user" | "admin">("all")
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "banned">("all")
   const [ordersFilter, setOrdersFilter] = useState<"all" | "with" | "without">("all")
+
+  const columns = useMemo(() => getColumns(onRefresh), [onRefresh])
 
   const filteredData = useMemo(
     () =>

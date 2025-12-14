@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card"
 import { Info } from "lucide-react"
 import { getBackendBaseUrl } from "@/lib/api"
+import useSWR from "swr"
 
 type Order = {
   id: string
@@ -28,101 +29,65 @@ type Order = {
   placeId: string
 }
 
+const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((res) => res.json())
+
 export default function AdminPage() {
-  const [balance, setBalance] = useState("0")
-  const [stock, setStock] = useState("0")
-  const [orders, setOrders] = useState<Order[]>([])
-  const [ordersCount, setOrdersCount] = useState(0)
-  const [clientsCount, setClientsCount] = useState(0)
-  const [salesThisMonth, setSalesThisMonth] = useState(0)
-  const [chartData, setChartData] = useState<{ month: string; revenue: number }[]>([])
+  const baseUrl = getBackendBaseUrl()
 
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      const baseUrl = getBackendBaseUrl()
-      const [balanceRes, stockRes, ordersRes] = await Promise.all([
-        fetch(`${baseUrl}/api/admin/rbx/balance`, {
-          method: "GET",
-          credentials: "include",
-        }),
-        fetch(`${baseUrl}/api/rbx/stock/summary`, {
-          method: "GET",
-          credentials: "include",
-        }),
-        fetch(`${baseUrl}/api/admin/orders`, {
-          method: "GET",
-          credentials: "include",
-        }),
-      ])
+  const { data: balanceData } = useSWR<{ success?: boolean; balance?: number }>(
+    `${baseUrl}/api/admin/rbx/balance`,
+    fetcher,
+    { refreshInterval: 10000 }
+  )
 
-      if (!balanceRes.ok || !stockRes.ok || !ordersRes.ok) {
-        return
-      }
+  const { data: stockData } = useSWR<{ success?: boolean; robuxAvailable?: number }>(
+    `${baseUrl}/api/rbx/stock/summary`,
+    fetcher,
+    { refreshInterval: 10000 }
+  )
 
-      const balanceJson = (await balanceRes.json()) as {
-        success?: boolean
-        balance?: number
-      }
-      const stockJson = (await stockRes.json()) as {
-        success?: boolean
-        robuxAvailable?: number
-      }
-
-      const ordersJson = (await ordersRes.json()) as {
-        orders?: Order[]
-        summary?: {
-          ordersCount?: number
-          clientsCount?: number
-          salesThisMonth?: number
-          monthlyRevenue?: number[]
-        }
-      }
-
-      if (cancelled) return
-
-      setBalance((balanceJson.balance ?? 0).toString())
-      setStock((stockJson.robuxAvailable ?? 0).toString())
-
-      const ordersData = ordersJson.orders ?? []
-      const summary = ordersJson.summary ?? {}
-
-      setOrders(ordersData)
-      setOrdersCount(summary.ordersCount ?? 0)
-      setClientsCount(summary.clientsCount ?? 0)
-      setSalesThisMonth(summary.salesThisMonth ?? 0)
-
-      const months = [
-        "Январь",
-        "Февраль",
-        "Март",
-        "Апрель",
-        "Май",
-        "Июнь",
-        "Июль",
-        "Август",
-        "Сентябрь",
-        "Октябрь",
-        "Ноябрь",
-        "Декабрь",
-      ]
-
-      const monthlyRevenue = Array.isArray(summary.monthlyRevenue)
-        ? summary.monthlyRevenue
-        : []
-
-      setChartData(
-        months.map((month, index) => ({
-          month,
-          revenue: monthlyRevenue[index] ?? 0,
-        })),
-      )
+  const { data: ordersData } = useSWR<{
+    orders?: Order[]
+    summary?: {
+      ordersCount?: number
+      clientsCount?: number
+      salesThisMonth?: number
+      monthlyRevenue?: number[]
     }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  }>(`${baseUrl}/api/admin/orders`, fetcher, { refreshInterval: 5000 })
+
+  const balance = (balanceData?.balance ?? 0).toString()
+  const stock = (stockData?.robuxAvailable ?? 0).toString()
+  const orders = ordersData?.orders ?? []
+  const summary = ordersData?.summary ?? {}
+  
+  const ordersCount = summary.ordersCount ?? 0
+  const clientsCount = summary.clientsCount ?? 0
+  const salesThisMonth = summary.salesThisMonth ?? 0
+
+  const months = [
+    "Январь",
+    "Февраль",
+    "Март",
+    "Апрель",
+    "Май",
+    "Июнь",
+    "Июль",
+    "Август",
+    "Сентябрь",
+    "Октябрь",
+    "Ноябрь",
+    "Декабрь",
+  ]
+
+  const monthlyRevenue = Array.isArray(summary.monthlyRevenue)
+    ? summary.monthlyRevenue
+    : []
+
+  const chartData = months.map((month, index) => ({
+    month,
+    revenue: monthlyRevenue[index] ?? 0,
+  }))
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">

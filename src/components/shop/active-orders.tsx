@@ -4,9 +4,10 @@ import { Order } from "@/lib/db"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Loader2, Package, XCircle } from "lucide-react"
+import { Loader2, Package, XCircle, RefreshCw } from "lucide-react"
 import { RobuxIcon } from "@/components/robux-icon"
 import { getBackendBaseUrl } from "@/lib/api"
+import { toast } from "sonner"
 
 interface ActiveOrdersProps {
   orders: Order[]
@@ -16,6 +17,7 @@ interface ActiveOrdersProps {
 export function ActiveOrders({ orders, onOrderUpdated }: ActiveOrdersProps) {
   const activeOrders = orders.filter(o => o.status === 'pending' || o.status === 'processing')
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [resendingId, setResendingId] = useState<string | null>(null)
 
   const handleCancel = async (orderId: string) => {
     if (!confirm("Вы уверены, что хотите отменить этот заказ? Средства вернутся на баланс.")) {
@@ -31,18 +33,46 @@ export function ActiveOrders({ orders, onOrderUpdated }: ActiveOrdersProps) {
       })
       
       if (res.ok) {
+        toast.success("Заказ успешно отменен")
         if (onOrderUpdated) {
             onOrderUpdated()
         }
-        window.location.reload()
+        // Use router.refresh() if possible, but window.location.reload() is safer for now
+        // actually onOrderUpdated calls fetchOrders which updates state
       } else {
         const json = await res.json()
-        alert(json.error || "Не удалось отменить заказ")
+        toast.error(json.error || "Не удалось отменить заказ")
       }
     } catch (e) {
-      alert("Произошла ошибка при отмене заказа")
+      toast.error("Произошла ошибка при отмене заказа")
     } finally {
       setCancellingId(null)
+    }
+  }
+
+  const handleResend = async (orderId: string) => {
+    setResendingId(orderId)
+    try {
+      const baseUrl = getBackendBaseUrl()
+      const res = await fetch(`${baseUrl}/api/rbx/orders/resend`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ orderId }),
+        credentials: "include",
+      })
+
+      const data = await res.json()
+      if (res.ok && data.success) {
+          toast.success("Заказ отправлен на повторную обработку")
+      } else {
+          toast.error(data.error || "Ошибка при отправке")
+      }
+    } catch (e) {
+        toast.error("Ошибка соединения")
+    } finally {
+        setResendingId(null)
     }
   }
 
@@ -87,11 +117,28 @@ export function ActiveOrders({ orders, onOrderUpdated }: ActiveOrdersProps) {
                 </div>
               </div>
               
-              {order.status === 'pending' && (
+              <div className="flex gap-2">
+                {order.status === 'processing' && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-8 text-xs"
+                        disabled={resendingId === order.id}
+                        onClick={() => handleResend(order.id)}
+                    >
+                        {resendingId === order.id ? (
+                            <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                        ) : (
+                            <RefreshCw className="mr-2 h-3 w-3" />
+                        )}
+                        Повторить
+                    </Button>
+                )}
+
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="w-full h-8 text-xs text-muted-foreground hover:text-destructive"
+                  className={`h-8 text-xs text-muted-foreground hover:text-destructive ${order.status === 'pending' ? 'w-full' : 'flex-1'}`}
                   disabled={cancellingId === order.id}
                   onClick={() => handleCancel(order.id)}
                 >
@@ -100,9 +147,9 @@ export function ActiveOrders({ orders, onOrderUpdated }: ActiveOrdersProps) {
                     ) : (
                         <XCircle className="mr-2 h-3 w-3" />
                     )}
-                    Отменить заказ
+                    Отменить
                 </Button>
-              )}
+              </div>
             </div>
           ))
         )}

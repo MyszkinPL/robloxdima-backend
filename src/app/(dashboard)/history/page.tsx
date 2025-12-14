@@ -19,13 +19,67 @@ import { RobuxIcon } from "@/components/robux-icon"
 import { useEffect, useState } from "react"
 import type { Order } from "@/lib/db"
 import { getBackendBaseUrl } from "@/lib/api"
-import { Loader2, XCircle } from "lucide-react"
+import { Loader2, RotateCcw, XCircle } from "lucide-react"
+import useSWR from "swr"
+
+const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((res) => res.json())
 
 export default function HistoryPage() {
   const [userLoaded, setUserLoaded] = useState(false)
-  const [orders, setOrders] = useState<Order[]>([])
   const [hasUser, setHasUser] = useState(false)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [resendingId, setResendingId] = useState<string | null>(null)
+
+  const baseUrl = getBackendBaseUrl()
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const user = await getSessionUser()
+      if (user) {
+        setHasUser(true)
+      }
+      setUserLoaded(true)
+    }
+    checkUser()
+  }, [])
+
+  const { data: ordersData, mutate } = useSWR<{ orders?: Order[] }>(
+    hasUser ? `${baseUrl}/api/orders/my` : null,
+    fetcher,
+    { refreshInterval: 5000 }
+  )
+
+  const orders = ordersData?.orders ?? []
+
+  const handleResend = async (orderId: string) => {
+    if (!confirm("Отправить заказ повторно? Используйте это, если заказ долго не приходит.")) {
+      return
+    }
+
+    setResendingId(orderId)
+    try {
+      const res = await fetch(`${baseUrl}/api/rbx/orders/resend`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ orderId }),
+        credentials: "include",
+      })
+      
+      const json = await res.json()
+      if (res.ok && json.success) {
+        alert("Запрос отправлен! Ожидайте обновления статуса.")
+        mutate() // Refresh data
+      } else {
+        alert(json.error || "Не удалось отправить повторно")
+      }
+    } catch (e) {
+      alert("Произошла ошибка")
+    } finally {
+      setResendingId(null)
+    }
+  }
 
   const handleCancel = async (orderId: string) => {
     if (!confirm("Вы уверены, что хотите отменить этот заказ? Средства вернутся на баланс.")) {
@@ -34,16 +88,13 @@ export default function HistoryPage() {
 
     setCancellingId(orderId)
     try {
-      const baseUrl = getBackendBaseUrl()
       const res = await fetch(`${baseUrl}/api/orders/${orderId}/cancel`, {
         method: "POST",
         credentials: "include",
       })
       
       if (res.ok) {
-        setOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, status: "cancelled" } : o))
-        )
+        mutate() // Refresh data immediately
       } else {
         const json = await res.json()
         alert(json.error || "Не удалось отменить заказ")
@@ -54,36 +105,6 @@ export default function HistoryPage() {
       setCancellingId(null)
     }
   }
-
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      const user = await getSessionUser()
-      if (cancelled) return
-      if (!user) {
-        setHasUser(false)
-        setUserLoaded(true)
-        return
-      }
-      setHasUser(true)
-      const baseUrl = getBackendBaseUrl()
-      const res = await fetch(`${baseUrl}/api/orders/my`, {
-        method: "GET",
-        credentials: "include",
-      })
-      if (res.ok) {
-        const json = (await res.json()) as {
-          orders?: Order[]
-        }
-        setOrders(json.orders ?? [])
-      }
-      setUserLoaded(true)
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   if (!userLoaded) {
     return (
@@ -179,6 +200,21 @@ export default function HistoryPage() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            {(order.status === "pending" || order.status === "processing") && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={resendingId === order.id}
+                                onClick={() => handleResend(order.id)}
+                                title="Отправить повторно"
+                              >
+                                {resendingId === order.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
                             {order.status === "pending" && (
                               <Button
                                 variant="ghost"

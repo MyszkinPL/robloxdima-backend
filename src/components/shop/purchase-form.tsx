@@ -5,10 +5,18 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { RussianRuble } from "lucide-react"
+import { RussianRuble, PlayCircle } from "lucide-react"
 import { TelegramLogin } from "@/components/auth/telegram-login"
 import { WalletDialog } from "@/components/wallet/wallet-dialog"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { useSWRConfig } from "swr"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { getBackendBaseUrl } from "@/lib/api"
 
 interface User {
@@ -22,15 +30,17 @@ interface PurchaseFormProps {
   rate: number
   user: User | null
   botName: string
+  onSuccess?: () => void
 }
 
-export function PurchaseForm({ rate, user, botName }: PurchaseFormProps) {
+export function PurchaseForm({ rate, user, botName, onSuccess }: PurchaseFormProps) {
   const [amount, setAmount] = useState<number>(100)
   const [isWalletOpen, setIsWalletOpen] = useState(false)
   const [isPending, setIsPending] = useState(false)
   const [orderType, setOrderType] = useState<"gamepass" | "vip">("gamepass")
   const [isTelegramMiniApp, setIsTelegramMiniApp] = useState(false)
   const [isAuthorizing, setIsAuthorizing] = useState(false)
+  const { mutate } = useSWRConfig()
   
   const price = amount * rate
   const balance = user?.balance || 0
@@ -158,7 +168,12 @@ export function PurchaseForm({ rate, user, botName }: PurchaseFormProps) {
         toast.error(data.error || "Ошибка создания заказа")
       } else {
         toast.success("Заказ успешно создан! ID: " + data.orderId)
-        window.location.reload()
+        mutate("/api/orders/my") // Force refresh orders list
+        if (onSuccess) {
+          onSuccess()
+        } else {
+          // window.location.reload() // No longer needed with SWR
+        }
       }
     } catch (error) {
       console.error("Error creating order:", error)
@@ -186,7 +201,12 @@ export function PurchaseForm({ rate, user, botName }: PurchaseFormProps) {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="amount">Количество Robux</Label>
+            <div className="flex justify-between items-center">
+              <Label htmlFor="amount">Количество Robux</Label>
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                1 <RobuxIcon className="inline w-3 h-3"/> = {rate.toFixed(2)} ₽
+              </span>
+            </div>
             <Input 
               id="amount" 
               name="amount" 
@@ -241,16 +261,35 @@ export function PurchaseForm({ rate, user, botName }: PurchaseFormProps) {
               placeholder="123456789" 
               required 
             />
-            <p className="text-xs text-muted-foreground">
-              ID плейса, на который будет создан Gamepass или VIP сервер.{" "}
-              <a
-                href="https://www.youtube.com/watch?v=GcyrXowokno"
-                target="_blank"
-                rel="noreferrer"
-                className="underline"
-              >
-                Как получить Place ID
-              </a>
+            
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full mt-2 gap-2">
+                  <PlayCircle className="w-4 h-4" />
+                  Как узнать Place ID? (Видео)
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[800px]">
+                <DialogHeader>
+                  <DialogTitle>Как получить Place ID</DialogTitle>
+                </DialogHeader>
+                <div className="w-full aspect-video rounded-lg overflow-hidden border bg-muted">
+                  <iframe 
+                    width="100%" 
+                    height="100%" 
+                    src="https://dzen.ru/embed/oMEZX1fMJAAA?from_block=partner&from=zen&mute=0&autoplay=1&tv=0" 
+                    allow="autoplay; fullscreen; accelerometer; gyroscope; picture-in-picture; encrypted-media" 
+                    title="Как получить Place ID"
+                    frameBorder="0" 
+                    scrolling="no" 
+                    allowFullScreen
+                  ></iframe>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <p className="text-xs text-muted-foreground mt-1">
+              ID плейса, на который будет создан Gamepass или VIP сервер.
             </p>
           </div>
 

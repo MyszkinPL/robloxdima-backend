@@ -7,38 +7,21 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2, RefreshCw } from "lucide-react"
 import { getBackendBaseUrl } from "@/lib/api"
 import type { Payment } from "@/lib/db"
+import useSWR from "swr"
+
+const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((res) => res.json())
 
 export default function TopupsPage() {
-  const [history, setHistory] = useState<Payment[]>([])
-  const [loading, setLoading] = useState(true)
   const [isBybitChecking, setIsBybitChecking] = useState(false)
   const [bybitCooldown, setBybitCooldown] = useState(0)
 
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      setLoading(true)
-      try {
-        const backendBaseUrl = getBackendBaseUrl()
-        const res = await fetch(`${backendBaseUrl}/api/wallet/history`, {
-          credentials: "include",
-        })
-        const data = await res.json()
+  const { data: historyData, isLoading: loading, mutate } = useSWR<{ success?: boolean; payments?: Payment[] }>(
+    `${getBackendBaseUrl()}/api/wallet/history`,
+    fetcher,
+    { refreshInterval: 5000 }
+  )
 
-        if (!cancelled && res.ok && data.success && data.payments) {
-          setHistory(data.payments)
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const history = historyData?.payments ?? []
 
   useEffect(() => {
     if (bybitCooldown <= 0) {
@@ -68,6 +51,10 @@ export default function TopupsPage() {
         credentials: "include",
       })
       const data = await res.json()
+
+      if (res.ok) {
+        mutate()
+      }
 
       if (res.status === 429) {
         console.error(data.error || "Слишком часто. Попробуйте позже.")

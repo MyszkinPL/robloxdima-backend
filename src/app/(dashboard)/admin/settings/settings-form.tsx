@@ -44,8 +44,18 @@ interface Currency {
 
 const FIAT_CURRENCIES = ["RUB", "USD", "EUR", "UAH", "BYN", "KZT", "UZS", "GBP"];
 
+import { useRouter } from "next/navigation"
+
 export default function SettingsForm({ settings }: { settings: AdminSettings }) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  
+  // Controlled inputs for settings that need immediate visual feedback
+  const [rate, setRate] = useState(settings.rate.toString())
+  const [markupType, setMarkupType] = useState(settings.markupType || "percent")
+  const [markupValue, setMarkupValue] = useState(settings.markupValue?.toString() || "0")
+  const [maintenance, setMaintenance] = useState(settings.maintenance)
+
   const [isCheckingCrypto, setIsCheckingCrypto] = useState(false)
   const [cryptoCheckResult, setCryptoCheckResult] = useState<{
     success: boolean
@@ -126,7 +136,7 @@ export default function SettingsForm({ settings }: { settings: AdminSettings }) 
         toast.error(result.error)
       } else {
         toast.success("Настройки сохранены")
-        window.location.reload()
+        router.refresh()
       }
     })
   }
@@ -206,7 +216,8 @@ export default function SettingsForm({ settings }: { settings: AdminSettings }) 
                     name="rate" 
                     type="text"
                     inputMode="decimal"
-                    defaultValue={settings.rate} 
+                    value={rate}
+                    onChange={(e) => setRate(e.target.value)}
                     required
                   />
                 </div>
@@ -214,7 +225,7 @@ export default function SettingsForm({ settings }: { settings: AdminSettings }) 
                 <div className="space-y-2">
                   <Label>Настройка наценки</Label>
                   <div className="flex gap-2">
-                     <Select name="markupType" defaultValue={settings.markupType || "percent"}>
+                     <Select name="markupType" value={markupType} onValueChange={setMarkupType}>
                         <SelectTrigger className="w-[110px]">
                            <SelectValue />
                         </SelectTrigger>
@@ -227,7 +238,8 @@ export default function SettingsForm({ settings }: { settings: AdminSettings }) 
                         name="markupValue"
                         type="number" 
                         step="0.01"
-                        defaultValue={settings.markupValue} 
+                        value={markupValue}
+                        onChange={(e) => setMarkupValue(e.target.value)}
                         placeholder="Наценка"
                         className="flex-1"
                      />
@@ -243,9 +255,26 @@ export default function SettingsForm({ settings }: { settings: AdminSettings }) 
                <Switch 
                  id="maintenance" 
                  name="maintenance" 
-                 defaultChecked={settings.maintenance} 
+                 checked={maintenance}
+                 onCheckedChange={setMaintenance}
                />
                <Label htmlFor="maintenance">Режим тех. работ</Label>
+            </div>
+
+            <div className="space-y-2 pt-4 border-t">
+              <Label htmlFor="referralPercent">Процент реферальной системы (%)</Label>
+              <Input 
+                id="referralPercent" 
+                name="referralPercent" 
+                type="number"
+                min="0"
+                max="100"
+                defaultValue={settings.referralPercent || 5} 
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Процент от суммы покупки, который получает пригласивший пользователь.
+              </p>
             </div>
           </CardContent>
           <CardFooter className="border-t px-6 py-4">
