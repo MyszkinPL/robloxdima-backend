@@ -109,14 +109,25 @@ export async function POST(req: NextRequest) {
 
     if (!order) {
       console.error(`[Webhook] Error: Order not found for IDs: orderId=${body.orderId}, uuid=${body.uuid}`)
-      // Return 200 to prevent retries if we can't find the order (it might have been deleted)
-      // Or return 404? RBXCrate might retry on 404. 
-      // Better to return 200 with success: false to stop retries if it's a permanent error?
-      // But maybe it's a sync issue. Let's return 404.
       return NextResponse.json(
         { error: "Order not found" },
         { status: 404 },
       )
+    }
+
+    // Idempotency check: If order is already in a final state, don't process again
+    if (
+      order.status === "completed" ||
+      order.status === "cancelled" ||
+      order.status === "failed"
+    ) {
+      console.log(`[Webhook] Order ${orderId} is already ${order.status}. Ignoring webhook update to ${status}.`)
+      return NextResponse.json({
+        success: true,
+        orderId,
+        status: order.status,
+        alreadyProcessed: true
+      })
     }
 
     let refunded = false
@@ -124,6 +135,7 @@ export async function POST(req: NextRequest) {
     let notifyStatus: "completed" | "refunded" | null = null
 
     if (status === OrderStatus.Error || status === OrderStatus.Cancelled) {
+      // Only refund if not already refunded (checked above by order.status, but double safety)
       const refundResult = await refundOrder(orderId, {
         source: "rbx_webhook",
         externalStatus: status,

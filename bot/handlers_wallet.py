@@ -73,30 +73,81 @@ async def handle_history(callback: CallbackQuery, api: BackendApiClient) -> None
         return
     payments = history.get("payments") or []
     
-    def format_item(p):
+    def format_button(p):
         amount = p.get("amount")
         status = p.get("status")
-        method = p.get("method")
+        # method = p.get("method") # Method is less important for button, maybe in details?
         
-        status_emoji = "✅" if status == "paid" else "⏳" if status == "pending" else "❌"
-        return f"<blockquote>{status_emoji} <b>{amount} ₽</b> — {status} ({method})</blockquote>"
+        status_icon = "✅" if status == "paid" else "⏳" if status == "pending" else "❌"
         
+        try:
+             date_part = p.get('createdAt', '')[:10].split('-')
+             date_str = f" ({date_part[2]}.{date_part[1]})"
+        except:
+             date_str = ""
+             
+        return f"{status_icon} {amount} ₽{date_str}"
+
     text_content, keyboard = create_pagination_keyboard(
         items=payments,
         page=page,
         items_per_page=5,
         callback_prefix="history:page",
-        item_formatter=format_item,
-        back_callback="menu:back"
+        item_formatter=None,
+        back_callback="menu:back",
+        item_callback_prefix="history:details",
+        item_id_key="id",
+        item_button_formatter=format_button
     )
     
     if not payments:
         text_content = "История пополнений пуста."
         keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="menu:back")]])
     else:
-        text_content = f"<b>Последние пополнения (стр. {page}):</b>\n" + text_content
+        text_content = f"<b>Последние пополнения (стр. {page}):</b>\nНажмите для подробностей."
 
     await callback.message.edit_text(text_content, reply_markup=keyboard)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("history:details:"))
+async def handle_history_details(callback: CallbackQuery, api: BackendApiClient) -> None:
+    payment_id = callback.data.split(":")[-1]
+    
+    try:
+        history = await api.get_wallet_history(callback.from_user.id)
+        payments = history.get("payments") or []
+        payment = next((p for p in payments if p["id"] == payment_id), None)
+    except Exception:
+        await callback.answer("Ошибка загрузки.", show_alert=True)
+        return
+
+    if not payment:
+        await callback.answer("Платеж не найден.", show_alert=True)
+        return
+
+    status = payment.get("status")
+    status_text = {
+        "pending": "⏳ Ожидает оплаты",
+        "paid": "✅ Оплачен",
+        "cancelled": "❌ Отменен",
+        "expired": "⏰ Истек"
+    }.get(status, status)
+
+    text = (
+        f"💳 <b>Пополнение #{payment.get('id')[-8:]}</b>\n\n"
+        f"💰 <b>Сумма:</b> {payment.get('amount')} ₽\n"
+        f"💳 <b>Способ:</b> {payment.get('method')}\n"
+        f"📊 <b>Статус:</b> {status_text}\n"
+        f"📅 <b>Дата:</b> {payment.get('createdAt')}\n"
+    )
+
+    # Back button to history page (calculating page might be hard, so just back to history start)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="🔙 Назад к списку", callback_data="menu:history")
+    ]])
+    
+    await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.answer()
 
 
@@ -126,59 +177,6 @@ async def handle_stock_info(callback: CallbackQuery, api: BackendApiClient) -> N
     )
     
     await callback.message.edit_text(text, reply_markup=stock_keyboard())
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("menu:orders_history") | F.data.startswith("orders:page:"))
-async def handle_orders_history(callback: CallbackQuery, api: BackendApiClient) -> None:
-    if not callback.from_user:
-        await callback.answer()
-        return
-        
-    page = 1
-    if "page" in callback.data:
-        try:
-            page = int(callback.data.split(":")[-1])
-        except ValueError:
-            page = 1
-
-    try:
-        orders_data = await api.get_my_orders(callback.from_user.id)
-    except Exception:
-        await callback.answer("Ошибка получения заказов.", show_alert=True)
-        return
-        
-    orders = orders_data.get("orders") or []
-    
-    def format_item(order):
-        oid = order.get("id")
-        amount = order.get("amount")
-        status = order.get("status")
-        
-        status_emoji = {
-            "pending": "⏳",
-            "done": "✅",
-            "cancelled": "❌",
-            "error": "⚠️"
-        }.get(status, "❓")
-        
-        return f"<blockquote>{status_emoji} <b>Заказ #{oid}</b>\n💰 {amount} R$ — {status}</blockquote>"
-        
-    text_content, keyboard = create_pagination_keyboard(
-        items=orders,
-        page=page,
-        items_per_page=5,
-        callback_prefix="orders:page",
-        item_formatter=format_item,
-        back_callback="menu:back"
-    )
-    
-    if not orders:
-        text_content = "Список заказов пуст."
-    else:
-        text_content = f"<b>Ваши заказы (стр. {page}):</b>\n" + text_content
-
-    await callback.message.edit_text(text_content, reply_markup=keyboard)
     await callback.answer()
 
 

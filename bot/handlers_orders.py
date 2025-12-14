@@ -239,11 +239,11 @@ async def handle_my_orders(callback: CallbackQuery, api: BackendApiClient) -> No
         amount = o.get("amount")
         try:
              date_part = o.get('createdAt', '')[:10].split('-')
-             date_str = f"{date_part[2]}.{date_part[1]}"
+             date_str = f" ({date_part[2]}.{date_part[1]})"
         except:
              date_str = ""
              
-        return f"{status_icon} {amount} R$ ({date_str})"
+        return f"{status_icon} {amount} R${date_str}"
 
     text_content, keyboard = create_pagination_keyboard(
         items=orders,
