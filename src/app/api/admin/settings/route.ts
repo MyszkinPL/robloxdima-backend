@@ -31,8 +31,12 @@ export async function PATCH(req: Request) {
 
     const body = await req.json()
     console.log("PATCH /api/admin/settings body:", body)
+    console.log("Extracted payment flags:", {
+        isCryptoBotEnabled: body.isCryptoBotEnabled,
+        isPaypalychEnabled: body.isPaypalychEnabled
+    })
     const { 
-      rate, 
+      rate,  
       buyRate,
       maintenance, 
       rbxKey,
