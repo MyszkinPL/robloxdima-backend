@@ -20,7 +20,7 @@ export async function createBybitPayment(
   const tradeNo = uuidv4()
   
   // Construct the payload based on Bybit Pay API docs
-  const payload: any = {
+  const payload: BybitPayOrderRequest = {
     merchantId: merchantId,
     merchantTradeNo: tradeNo,
     currency: "USDT",

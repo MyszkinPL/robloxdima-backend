@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
 import { getSettings } from "@/lib/settings"
-import { getUser } from "@/lib/db"
 
 export async function GET(req: NextRequest) {
   try {

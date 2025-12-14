@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
         // Rate limit: 20 msgs/sec => 50ms delay
         await new Promise(r => setTimeout(r, 50))
-      } catch (e) {
+      } catch {
         failCount++
       }
     }

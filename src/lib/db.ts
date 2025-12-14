@@ -1,5 +1,6 @@
+import { Prisma, User as PrismaUser, Order as PrismaOrder, Payment as PrismaPayment } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import type { User as PrismaUser, Order as PrismaOrder, Payment as PrismaPayment } from '@prisma/client';
+import { getSettings } from './settings';
 
 export { prisma };
 
@@ -10,6 +11,7 @@ export interface Order {
   type: 'gamepass' | 'vip';
   amount: number;
   price: number;
+  cost: number; // Cost of goods sold
   status: 'pending' | 'completed' | 'failed' | 'processing' | 'cancelled';
   createdAt: string;
   rbxOrderId?: string;
@@ -52,7 +54,16 @@ export interface Payment {
 
 // Helpers to map Prisma results to our interfaces
 function mapUser(user: PrismaUser): User {
-  const extendedUser = user as any;
+  // If PrismaUser type doesn't have these fields yet (due to partial client update), we access them carefully
+  // But since we ran prisma generate, they should exist if schema is correct.
+  // If not, we fallback to accessing as any but we prefer type safety.
+  // We assume schema has these fields.
+  const extendedUser = user as PrismaUser & { 
+    bybitUid?: string | null; 
+    referrerId?: string | null; 
+    referralBalance?: number;
+  };
+
   return {
     ...user,
     username: user.username || undefined,
@@ -67,7 +78,6 @@ function mapUser(user: PrismaUser): User {
 }
 
 function mapOrder(order: PrismaOrder): Order {
-  const ext = order as any;
   return {
     id: order.id,
     userId: order.userId,
@@ -75,6 +85,7 @@ function mapOrder(order: PrismaOrder): Order {
     type: (order.type as Order['type']) || 'gamepass',
     amount: order.amount,
     price: order.price,
+    cost: order.cost || 0,
     status: order.status as Order['status'],
     createdAt: order.createdAt.toISOString(),
     placeId: order.placeId,
@@ -103,7 +114,7 @@ export interface GetOrdersOptions {
 export async function getOrders(options: GetOrdersOptions = {}): Promise<{ orders: Order[]; total: number }> {
   const { page = 1, limit = 50, search, userId, status, refunded } = options;
   const skip = (page - 1) * limit;
-  const where: any = {};
+  const where: Prisma.OrderWhereInput = {};
 
   if (userId) where.userId = userId;
   if (status && status !== 'all') where.status = status;
@@ -139,7 +150,10 @@ export async function getOrder(id: string): Promise<Order | undefined> {
   return order ? mapOrder(order) : undefined;
 }
 
-export async function createOrder(order: Omit<Order, 'id' | 'createdAt' | 'status'>): Promise<Order> {
+export async function createOrder(order: Omit<Order, 'id' | 'createdAt' | 'status' | 'cost'>): Promise<Order> {
+  const settings = await getSettings();
+  const cost = order.amount * (settings.buyRate || 0);
+
   const created = await prisma.order.create({
     data: {
       userId: order.userId,
@@ -147,6 +161,7 @@ export async function createOrder(order: Omit<Order, 'id' | 'createdAt' | 'statu
       type: order.type,
       amount: order.amount,
       price: order.price,
+      cost: cost,
       status: 'pending',
       placeId: order.placeId,
     }
@@ -277,7 +292,7 @@ export interface GetUsersOptions {
 export async function getUsers(options: GetUsersOptions = {}): Promise<{ users: User[]; total: number }> {
   const { page = 1, limit = 50, search, role, status, ordersFilter } = options;
   const skip = (page - 1) * limit;
-  const where: any = {};
+  const where: Prisma.UserWhereInput = {};
 
   if (role && role !== 'all') where.role = role;
   if (status && status !== 'all') {
@@ -322,7 +337,7 @@ export async function createUserOrUpdate(userData: Partial<User> & { id: string 
   const { id, ...rest } = userData;
   
   // Prepare data for upsert
-  const createData = {
+  const createData: Prisma.UserCreateInput = {
     id,
     firstName: rest.firstName || 'User',
     username: rest.username,
@@ -330,18 +345,21 @@ export async function createUserOrUpdate(userData: Partial<User> & { id: string 
     role: rest.role || 'user',
     balance: rest.balance || 0,
     createdAt: rest.createdAt ? new Date(rest.createdAt) : new Date(),
-    referrerId: (rest as any).referrerId,
+    referrerId: rest.referrerId,
+    referralBalance: rest.referralBalance || 0,
+    bybitUid: rest.bybitUid,
   };
 
-  const updateData = {
-    ...rest,
+  const updateData: Prisma.UserUpdateInput = {
+    firstName: rest.firstName,
+    username: rest.username,
+    photoUrl: rest.photoUrl,
+    role: rest.role,
+    balance: rest.balance,
     createdAt: rest.createdAt ? new Date(rest.createdAt) : undefined,
+    referralBalance: rest.referralBalance,
+    bybitUid: rest.bybitUid,
   };
-
-  // Remove referrerId from updateData if it exists, because we don't want to update referrer once set
-  if ('referrerId' in updateData) {
-    delete (updateData as any).referrerId;
-  }
 
   // Remove undefined fields from updateData
   Object.keys(updateData).forEach(key => {
@@ -499,7 +517,7 @@ export async function getAdminLogs(options: GetAdminLogsOptions = {}): Promise<{
   const { page = 1, limit = 50, search, field, type, from, to } = options;
   const skip = (page - 1) * limit;
 
-  const where: any = {};
+  const where: Prisma.LogWhereInput = {};
 
   // Date filtering
   if (from || to) {
@@ -602,13 +620,14 @@ export async function getDashboardStats() {
 
 export interface DetailedStatsData {
   totalRevenue: number
+  totalProfit: number
   ordersCount: number
   usersCount: number
   bannedUsersCount: number
   activeUsersCount: number
   ordersByStatus: { status: string; count: number }[]
   topBuyers: { userId: string; username: string; totalSpent: number }[]
-  dailyRevenue: { date: string; amount: number }[]
+  dailyStats: { date: string; revenue: number; profit: number; orders: number }[]
   paymentsByMethod: { method: string; count: number; amount: number }[]
 }
 
@@ -620,11 +639,11 @@ export async function getDetailedStats(): Promise<DetailedStatsData> {
     bannedUsersCount,
     ordersByStatusAgg,
     topBuyersAgg,
-    dailyRevenueAgg,
+    dailyStatsAgg,
     paymentsByMethodAgg
   ] = await Promise.all([
     prisma.order.aggregate({
-      _sum: { price: true },
+      _sum: { price: true, cost: true },
       where: { status: 'completed' }
     }),
     prisma.order.count(),
@@ -642,12 +661,16 @@ export async function getDetailedStats(): Promise<DetailedStatsData> {
       take: 5
     }),
     prisma.$queryRaw`
-      SELECT DATE("createdAt") as date, SUM("price") as amount
+      SELECT 
+        DATE("createdAt") as date, 
+        SUM("price") as revenue, 
+        SUM("price" - "cost") as profit,
+        COUNT("id") as orders
       FROM "orders"
       WHERE "status" = 'completed' AND "createdAt" > NOW() - INTERVAL '30 days'
       GROUP BY DATE("createdAt")
       ORDER BY DATE("createdAt") ASC
-    ` as Promise<{ date: Date, amount: number }[]>,
+    ` as Promise<{ date: Date, revenue: number, profit: number, orders: bigint }[]>,
     prisma.payment.groupBy({
       by: ['method'],
       _count: { id: true },
@@ -674,15 +697,18 @@ export async function getDetailedStats(): Promise<DetailedStatsData> {
 
   return {
     totalRevenue: totalRevenueAgg._sum.price || 0,
+    totalProfit: (totalRevenueAgg._sum.price || 0) - (totalRevenueAgg._sum.cost || 0),
     ordersCount,
     usersCount,
     bannedUsersCount,
     activeUsersCount: usersCount - bannedUsersCount,
     ordersByStatus: ordersByStatusAgg.map(s => ({ status: s.status, count: s._count.id })),
     topBuyers,
-    dailyRevenue: dailyRevenueAgg.map(d => ({ 
+    dailyStats: dailyStatsAgg.map(d => ({ 
       date: new Date(d.date).toISOString(), 
-      amount: d.amount 
+      revenue: d.revenue,
+      profit: d.profit,
+      orders: Number(d.orders)
     })),
     paymentsByMethod: paymentsByMethodAgg.map(p => ({
       method: p.method,
@@ -735,4 +761,3 @@ export async function updateUserRole(userId: string, role: 'user' | 'admin') {
     data: { role }
   });
 }
-

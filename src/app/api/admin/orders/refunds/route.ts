@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/session"
 import { prisma } from "@/lib/db"
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const user = await getSessionUser()
     if (!user) {
@@ -30,8 +30,15 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     })
 
+    interface RefundInfo {
+        refunded: boolean;
+        source: string;
+        initiatorUserId: string;
+        createdAt: Date;
+    }
+
     // Map logs to a dictionary: orderId -> RefundInfo
-    const refundMap: Record<string, any> = {}
+    const refundMap: Record<string, RefundInfo> = {}
 
     logs.forEach((log) => {
       try {
@@ -48,7 +55,7 @@ export async function GET(req: NextRequest) {
                 }
             }
         }
-      } catch (e) {
+      } catch {
         // ignore parse errors
       }
     })

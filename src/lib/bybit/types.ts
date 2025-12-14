@@ -8,6 +8,7 @@ export interface BybitPayOrderRequest {
   goods: {
     goodsName: string
     goodsDetail?: string
+    mccCode?: string
   }[]
   env?: {
     terminalType: "APP" | "WEB" | "WAP" | "MINI_APP"

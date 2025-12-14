@@ -49,6 +49,7 @@ model Order {
   type      String   @default("gamepass")
   amount    Int
   price     Float
+  cost      Float    @default(0) // Cost of goods sold (what we paid)
   status    String   // 'pending' | 'completed' | 'cancelled'
   placeId   String
   createdAt DateTime @default(now())
@@ -81,6 +82,7 @@ model Payment {
 model Settings {
   id                  Int     @id @default(1)
   rate                Float   @default(0.5)
+  buyRate             Float   @default(0.0) // Cost rate per Robux
   maintenance         Boolean @default(false)
   rbxKey              String?
   cryptoBotToken      String?

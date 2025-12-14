@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 
 export interface Settings {
   rate: number;
+  buyRate: number;
   maintenance: boolean;
   rbxKey: string;
   cryptoBotToken: string;
@@ -27,6 +28,7 @@ export interface Settings {
 
 const DEFAULT_SETTINGS: Settings = {
   rate: 0.5,
+  buyRate: 0.0,
   maintenance: false,
   rbxKey: "",
   cryptoBotToken: "",
@@ -72,6 +74,7 @@ export async function getSettings(): Promise<Settings> {
     
     return {
       rate: newSettings.rate,
+      buyRate: newSettings.buyRate || 0.0,
       maintenance: newSettings.maintenance,
       rbxKey: newSettings.rbxKey || "",
       cryptoBotToken: newSettings.cryptoBotToken || "",
@@ -98,6 +101,7 @@ export async function getSettings(): Promise<Settings> {
 
   return {
     rate: settings.rate,
+    buyRate: settings.buyRate || 0.0,
     maintenance: settings.maintenance,
     rbxKey: settings.rbxKey || "",
     cryptoBotToken: settings.cryptoBotToken || "",

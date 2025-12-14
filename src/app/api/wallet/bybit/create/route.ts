@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma, logAction } from "@/lib/db"
+import { prisma } from "@/lib/db"
 import { createBybitPayment } from "@/lib/bybit/service"
 import { getRubToUsdtRate } from "@/lib/crypto-bot"
 
@@ -32,9 +32,10 @@ export async function POST(req: NextRequest) {
     let orderResult
     try {
         orderResult = await createBybitPayment(amountUsdt, user.id, `Topup ${amount} RUB`)
-    } catch (e: any) {
+    } catch (e) {
         console.error("Bybit Pay creation failed:", e)
-        return NextResponse.json({ error: e.message || "Failed to create Bybit order" }, { status: 500 })
+        const message = e instanceof Error ? e.message : "Failed to create Bybit order"
+        return NextResponse.json({ error: message }, { status: 500 })
     }
 
     // Save payment record

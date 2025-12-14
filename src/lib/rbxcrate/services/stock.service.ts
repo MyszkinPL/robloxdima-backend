@@ -1,6 +1,10 @@
 import { HttpClient } from "../core/http-client";
 import { DetailedStockResponse, StockResponse } from "../types";
 
+type DetailedStockApiResponse = 
+  | DetailedStockResponse 
+  | { stock?: DetailedStockResponse; data?: DetailedStockResponse };
+
 export class StockService {
   constructor(private http: HttpClient) {}
 
@@ -17,7 +21,7 @@ export class StockService {
   async getDetailed(): Promise<DetailedStockResponse> {
     try {
       // Trying /orders/detailed-stock endpoint (mapped to /api/orders/detailed-stock)
-      const response = await this.http.request<any>("/orders/detailed-stock", "GET");
+      const response = await this.http.request<DetailedStockApiResponse>("/orders/detailed-stock", "GET");
       
       // Handle array response directly
       if (Array.isArray(response)) {

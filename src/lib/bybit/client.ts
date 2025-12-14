@@ -28,7 +28,7 @@ export class BybitClient {
       .digest("hex")
   }
 
-  async post<T>(path: string, data: Record<string, any>): Promise<T> {
+  async post<T>(path: string, data: Record<string, unknown>): Promise<T> {
     const { apiKey, apiSecret, testnet } = await this.getCredentials()
     const timestamp = Date.now().toString()
     const bodyStr = JSON.stringify(data)

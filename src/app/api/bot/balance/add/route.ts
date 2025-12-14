@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma, addToUserBalance, createPayment, Payment, getUser } from "@/lib/db"
+import { addToUserBalance, createPayment, Payment, getUser } from "@/lib/db"
 import { getSettings } from "@/lib/settings"
 
 export async function POST(req: NextRequest) {

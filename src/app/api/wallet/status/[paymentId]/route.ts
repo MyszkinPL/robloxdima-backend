@@ -3,7 +3,6 @@ import { getSessionUser } from "@/lib/session"
 import { getPayment, updatePaymentStatus, addToUserBalance, addToReferralBalance, getUser } from "@/lib/db"
 import { checkInvoice } from "@/lib/crypto-bot"
 import { getSettings } from "@/lib/settings"
-import { prisma } from "@/lib/prisma"
 
 export async function GET(
   req: NextRequest,

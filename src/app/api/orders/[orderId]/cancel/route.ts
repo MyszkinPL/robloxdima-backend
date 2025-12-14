@@ -55,7 +55,7 @@ export async function POST(
        } catch (error) {
          // If it's 404, we can assume it's safe to cancel locally
          // If it's other error (e.g. "Already completed"), we should not cancel
-         const isNotFound = error instanceof Error && error.message.includes("not found")
+         
          // We can check error types if we imported them, but message check is often enough
          // actually we can import RbxCrateNotFoundError
          

@@ -25,7 +25,13 @@ export async function POST(req: NextRequest) {
        return NextResponse.json({ error: "Invalid payment method for this endpoint" }, { status: 400 })
     }
 
-    let providerData: any = {}
+    interface BybitProviderData {
+      merchantTradeNo?: string;
+      finalStatus?: string;
+      [key: string]: unknown;
+    }
+
+    let providerData: BybitProviderData = {}
     try {
       providerData = typeof payment.providerData === 'string' 
         ? JSON.parse(payment.providerData) 

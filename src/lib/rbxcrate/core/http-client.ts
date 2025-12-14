@@ -77,9 +77,8 @@ export class HttpClient {
       }
 
       return response.json();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
         throw new RbxCrateTimeoutError();
       }
       throw error;

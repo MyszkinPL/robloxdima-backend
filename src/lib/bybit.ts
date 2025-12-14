@@ -1,6 +1,4 @@
 import crypto from "crypto"
-import { prisma, logAction } from "@/lib/db"
-import { getUsdtToRubRate } from "@/lib/crypto-bot"
 import { getSettings } from "@/lib/settings"
 
 const BYBIT_RECV_WINDOW = "5000"

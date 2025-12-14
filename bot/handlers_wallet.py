@@ -38,6 +38,9 @@ async def handle_balance(callback: CallbackQuery, api: BackendApiClient) -> None
         await callback.answer("Ошибка авторизации. Отправьте /start и попробуйте снова.", show_alert=True)
         return
     balance = me.get("balance", 0)
+    total_orders = me.get("totalOrders", 0)
+    total_spent = me.get("totalSpent", 0)
+    
     user_id = callback.from_user.id
     username = callback.from_user.username or "Не указан"
     full_name = callback.from_user.full_name
@@ -48,7 +51,9 @@ async def handle_balance(callback: CallbackQuery, api: BackendApiClient) -> None
         f"👤 Имя: {full_name}\n"
         f"📧 Username: @{username}\n"
         f"➖➖➖➖➖➖➖➖➖➖\n"
-        f"💰 <b>Баланс:</b> <code>{balance} ₽</code>"
+        f"💰 <b>Баланс:</b> <code>{balance} ₽</code>\n"
+        f"📦 <b>Заказов:</b> <code>{total_orders}</code>\n"
+        f"💸 <b>Потрачено:</b> <code>{total_spent} ₽</code>"
     )
     await callback.message.edit_text(text, reply_markup=profile_keyboard())
     await callback.answer()

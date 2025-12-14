@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       firstName: body.firstName || "User",
       photoUrl: body.photoUrl,
       referrerId: body.referrerId,
-    } as any)
+    })
 
     return NextResponse.json({ success: true, user })
   } catch (error) {
