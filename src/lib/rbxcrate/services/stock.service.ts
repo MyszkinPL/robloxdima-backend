@@ -6,8 +6,8 @@ export class StockService {
 
   async getSummary(): Promise<StockResponse> {
     try {
-      // Trying /stock endpoint (mapped to /api/v1/stock)
-      return await this.http.request("/stock", "GET");
+      // Trying /orders/stock endpoint (mapped to /api/orders/stock)
+      return await this.http.request("/orders/stock", "GET");
     } catch (error) {
       console.error("RbxCrate StockService.getSummary error:", error);
       return { robuxAvailable: 0, maxRobuxAvailable: 0 };
@@ -16,8 +16,8 @@ export class StockService {
 
   async getDetailed(): Promise<DetailedStockResponse> {
     try {
-      // Trying /detailed-stock endpoint (mapped to /api/v1/detailed-stock)
-      const response = await this.http.request<any>("/detailed-stock", "GET");
+      // Trying /orders/detailed-stock endpoint (mapped to /api/orders/detailed-stock)
+      const response = await this.http.request<any>("/orders/detailed-stock", "GET");
       
       // Handle array response directly
       if (Array.isArray(response)) {
