@@ -35,18 +35,18 @@ class BanMiddleware(BaseMiddleware):
                 )
             
             if is_banned:
-            # User is banned, ignore the event
-            if hasattr(event, "message") and event.message:
-                try:
-                    await event.message.answer("⛔ Вы заблокированы. Доступ к боту ограничен.")
-                except Exception:
-                    pass
-            elif hasattr(event, "callback_query") and event.callback_query:
-                try:
-                    await event.callback_query.answer("⛔ Вы заблокированы.", show_alert=True)
-                except Exception:
-                    pass
-            return
+                # User is banned, ignore the event
+                if hasattr(event, "message") and event.message:
+                    try:
+                        await event.message.answer("⛔ Вы заблокированы. Доступ к боту ограничен.")
+                    except Exception:
+                        pass
+                elif hasattr(event, "callback_query") and event.callback_query:
+                    try:
+                        await event.callback_query.answer("⛔ Вы заблокированы.", show_alert=True)
+                    except Exception:
+                        pass
+                return
         except Exception as e:
             # If error (e.g. user not found), proceed
             pass
