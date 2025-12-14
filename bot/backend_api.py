@@ -77,6 +77,26 @@ class BackendApiClient:
     res.raise_for_status()
     return res.json()
 
+  async def get_my_orders(self, telegram_id: int) -> list[Dict[str, Any]]:
+    res = await self._client.get(
+      "/api/orders/my",
+      headers=self._headers_for_user(telegram_id),
+    )
+    res.raise_for_status()
+    data = res.json()
+    return data.get("orders", [])
+
+  async def sync_orders(self) -> list[Dict[str, Any]]:
+    res = await self._client.post(
+      "/api/bot/sync-orders",
+      headers={"x-bot-token": self._bot_token},
+    )
+    res.raise_for_status()
+    data = res.json()
+    return data.get("updates", [])
+
+
+
   async def create_topup(self, telegram_id: int, amount: float) -> Dict[str, Any]:
     payload = {"amount": amount}
     res = await self._client.post(

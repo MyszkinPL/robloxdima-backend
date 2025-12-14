@@ -12,6 +12,7 @@ from .db import create_pool, get_bot_token
 from .backend_api import BackendApiClient
 from .middlewares import ThrottlingMiddleware, BanMiddleware
 from . import handlers_start, handlers_wallet, handlers_orders, handlers_calculator, handlers_referrals
+from .scheduler import start_scheduler
 
 
 async def main() -> None:
@@ -49,6 +50,9 @@ async def main() -> None:
         await handler(event, data)
 
     dp.update.middleware(api_middleware)
+
+    # Start background scheduler
+    asyncio.create_task(start_scheduler(bot, api_client))
 
     try:
         await dp.start_polling(bot, pool=pool)

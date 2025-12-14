@@ -28,6 +28,18 @@ class OrderStates(StatesGroup):
 
 @router.callback_query(F.data == "menu:order")
 async def handle_order_start(callback: CallbackQuery, state: FSMContext, api: BackendApiClient) -> None:
+  user_id = callback.from_user.id
+  
+  # Check active orders
+  try:
+    orders = await api.get_my_orders(user_id)
+    active = [o for o in orders if o.get("status") in ["pending", "processing"]]
+    if active:
+      await callback.answer("У вас уже есть активный заказ. Дождитесь его завершения.", show_alert=True)
+      return
+  except Exception:
+    pass
+
   await state.clear()
   await state.set_state(OrderStates.waiting_username)
   

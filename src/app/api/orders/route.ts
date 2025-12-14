@@ -96,6 +96,21 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Check for active orders
+    const activeOrders = await prisma.order.count({
+      where: {
+        userId: userId!,
+        status: { in: ["pending", "processing"] }
+      }
+    })
+
+    if (activeOrders > 0) {
+      return NextResponse.json(
+        { error: "У вас уже есть активный заказ. Дождитесь его завершения." },
+        { status: 400 }
+      )
+    }
+
     const currentRate = await getCurrentUserRate()
     const rawPrice = amount * currentRate
     const price = Math.ceil(rawPrice * 100) / 100
