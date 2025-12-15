@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json(updates)
+    return NextResponse.json({ updates })
   } catch (error) {
     console.error("Sync error:", error)
     return NextResponse.json({ error: "Internal Error" }, { status: 500 })
