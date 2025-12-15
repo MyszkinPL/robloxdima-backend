@@ -3,7 +3,11 @@ import { mapOrder } from './types';
 
 // Dashboard Stats
 export async function getDashboardStats() {
-  const [totalOrders, totalUsers, totalVolume, recentOrders] = await Promise.all([
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+  const [totalOrders, totalUsers, totalVolume, recentOrders, salesThisMonth, monthlyRevenueRaw] = await Promise.all([
     prisma.order.count(),
     prisma.user.count(),
     prisma.order.aggregate({
@@ -17,12 +21,39 @@ export async function getDashboardStats() {
     prisma.order.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' }
-    })
+    }),
+    prisma.order.count({
+      where: {
+        status: 'completed',
+        createdAt: { gte: startOfMonth }
+      }
+    }),
+    prisma.$queryRaw`
+      SELECT 
+        EXTRACT(MONTH FROM "createdAt") as month, 
+        SUM("price") as revenue
+      FROM "orders"
+      WHERE "status" = 'completed' AND "createdAt" >= ${startOfYear}
+      GROUP BY EXTRACT(MONTH FROM "createdAt")
+      ORDER BY month ASC
+    ` as Promise<{ month: number, revenue: number }[]>
   ]);
 
+  // Process monthly revenue into array of 12 numbers
+  const monthlyRevenue = new Array(12).fill(0);
+  monthlyRevenueRaw.forEach(r => {
+    // month is 1-12
+    const m = Number(r.month);
+    if (m >= 1 && m <= 12) {
+       monthlyRevenue[m - 1] = Number(r.revenue);
+    }
+  });
+
   return {
-    totalOrders,
-    totalUsers,
+    ordersCount: totalOrders,
+    clientsCount: totalUsers,
+    salesThisMonth,
+    monthlyRevenue,
     totalVolume: totalVolume._sum.price || 0,
     recentOrders: recentOrders.map(mapOrder)
   };
