@@ -39,6 +39,8 @@ export interface DetailedStatsData {
   topBuyers: { userId: string; username: string; totalSpent: number }[]
   dailyStats: { date: string; revenue: number; profit: number; orders: number }[]
   paymentsByMethod: { method: string; count: number; amount: number }[]
+  newUsersDaily: { date: string; count: number }[]
+  topProducts: { amount: number; count: number }[]
 }
 
 export async function getDetailedStats(): Promise<DetailedStatsData> {
@@ -50,7 +52,9 @@ export async function getDetailedStats(): Promise<DetailedStatsData> {
     ordersByStatusAgg,
     topBuyersAgg,
     dailyStatsAgg,
-    paymentsByMethodAgg
+    paymentsByMethodAgg,
+    newUsersDailyAgg,
+    topProductsAgg
   ] = await Promise.all([
     prisma.order.aggregate({
       _sum: { price: true, cost: true },
@@ -86,6 +90,22 @@ export async function getDetailedStats(): Promise<DetailedStatsData> {
       _count: { id: true },
       _sum: { amount: true },
       where: { status: 'paid' }
+    }),
+    prisma.$queryRaw`
+      SELECT 
+        DATE("createdAt") as date, 
+        COUNT("id") as count
+      FROM "users"
+      WHERE "createdAt" > NOW() - INTERVAL '30 days'
+      GROUP BY DATE("createdAt")
+      ORDER BY DATE("createdAt") ASC
+    ` as Promise<{ date: Date, count: bigint }[]>,
+    prisma.order.groupBy({
+      by: ['amount'],
+      _count: { id: true },
+      where: { status: 'completed' },
+      orderBy: { _count: { id: 'desc' } },
+      take: 10
     })
   ]);
 
@@ -124,6 +144,14 @@ export async function getDetailedStats(): Promise<DetailedStatsData> {
       method: p.method,
       count: p._count.id,
       amount: p._sum.amount ? p._sum.amount.toNumber() : 0
+    })),
+    newUsersDaily: newUsersDailyAgg.map(d => ({
+      date: new Date(d.date).toISOString(),
+      count: Number(d.count)
+    })),
+    topProducts: topProductsAgg.map(p => ({
+      amount: p.amount,
+      count: p._count.id
     }))
   };
 }
