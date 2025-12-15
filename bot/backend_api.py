@@ -93,6 +93,8 @@ class BackendApiClient:
     )
     res.raise_for_status()
     data = res.json()
+    if isinstance(data, list):
+      return data
     return data.get("updates", [])
 
 

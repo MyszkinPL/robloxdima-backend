@@ -21,9 +21,12 @@ export async function getOrders(options: GetOrdersOptions = {}): Promise<{ order
 
   if (userId) where.userId = userId;
   if (status && status !== 'all') where.status = status;
-  if (refunded) {
-    where.status = 'failed'; // Assuming refunds are marked as failed
-    // Or check logs if needed, but simple check for now
+  if (refunded !== undefined) {
+    if (refunded) {
+      where.status = 'failed';
+    } else {
+      where.status = { not: 'failed' };
+    }
   }
   
   if (search) {

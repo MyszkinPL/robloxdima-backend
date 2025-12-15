@@ -108,8 +108,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Try finding by ID directly from the body if it differs (some providers send different fields)
+    if (!order && typeof body.orderId === 'string') {
+        // Try exact match again just in case
+         order = await getOrder(body.orderId)
+    }
+
     if (!order) {
       console.error(`[Webhook] Error: Order not found for IDs: orderId=${body.orderId}, uuid=${body.uuid}`)
+      // Return 200 OK to stop RBXCrate from retrying if we really can't find it, 
+      // otherwise they will spam us. But usually 404 is correct. 
+      // However, if we can't find it, we can't process it.
       return NextResponse.json(
         { error: "Order not found" },
         { status: 404 },
