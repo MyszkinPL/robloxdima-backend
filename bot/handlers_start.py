@@ -59,7 +59,8 @@ async def _is_admin(api: BackendApiClient, telegram_id: int) -> bool:
 
 
 @router.message(CommandStart())
-async def handle_start(message: Message, command: CommandObject, api: BackendApiClient) -> None:
+async def handle_start(message: Message, command: CommandObject, api: BackendApiClient, state: FSMContext) -> None:
+  await state.clear()
   await _ensure_user(message, api, command.args)
   is_admin = False
   if message.from_user:

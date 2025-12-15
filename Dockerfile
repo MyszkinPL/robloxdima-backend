@@ -41,7 +41,7 @@ RUN mkdir -p backend
 COPY --from=builder /app/bot ./backend/bot
 RUN touch backend/__init__.py
 
-RUN pip3 install --no-cache-dir --break-system-packages aiogram httpx asyncpg
+RUN pip3 install --no-cache-dir --break-system-packages aiogram httpx asyncpg cachetools
 
 USER nextjs
 

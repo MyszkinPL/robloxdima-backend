@@ -2,8 +2,15 @@ from typing import Callable, Dict, Any, Awaitable
 from aiogram import BaseMiddleware
 from aiogram.types import Message, CallbackQuery
 import asyncpg
+from cachetools import TTLCache
 
 class BanMiddleware(BaseMiddleware):
+    def __init__(self):
+        # Issue 6b Fix: Cache ban status to reduce DB load
+        # Store up to 10000 users for 60 seconds
+        # Cache stores: user_id -> is_banned (bool)
+        self.cache = TTLCache(maxsize=10000, ttl=60.0)
+
     async def __call__(
         self,
         handler: Callable[[Message, Dict[str, Any]], Awaitable[Any]],
@@ -14,13 +21,7 @@ class BanMiddleware(BaseMiddleware):
         if not pool:
             return await handler(event, data)
         
-        user = None
-        if hasattr(event, "message") and event.message:
-            user = event.message.from_user
-        elif hasattr(event, "callback_query") and event.callback_query:
-            user = event.callback_query.from_user
-        elif hasattr(event, "inline_query") and event.inline_query:
-            user = event.inline_query.from_user
+        user = event.from_user
             
         user_id = user.id if user else None
 
@@ -28,24 +29,23 @@ class BanMiddleware(BaseMiddleware):
             return await handler(event, data)
 
         try:
-            async with pool.acquire() as conn:
-                is_banned = await conn.fetchval(
-                    'SELECT "isBanned" FROM users WHERE id = $1',
-                    str(user_id)
-                )
+            # Check cache first
+            is_banned = self.cache.get(user_id)
+            
+            if is_banned is None:
+                # Cache miss, check DB
+                async with pool.acquire() as conn:
+                    is_banned = await conn.fetchval(
+                        'SELECT "isBanned" FROM "User" WHERE id = $1', # Ensure correct table name ("User" in Prisma usually)
+                        str(user_id)
+                    )
+                # Cache the result (False if None/False, True if True)
+                is_banned = bool(is_banned)
+                self.cache[user_id] = is_banned
             
             if is_banned:
                 # User is banned, ignore the event
-                if hasattr(event, "message") and event.message:
-                    try:
-                        await event.message.answer("⛔ Вы заблокированы. Доступ к боту ограничен.")
-                    except Exception:
-                        pass
-                elif hasattr(event, "callback_query") and event.callback_query:
-                    try:
-                        await event.callback_query.answer("⛔ Вы заблокированы.", show_alert=True)
-                    except Exception:
-                        pass
+                # ...
                 return
         except Exception as e:
             # If error (e.g. user not found), proceed

@@ -58,6 +58,14 @@ export async function GET(
       })
     }
 
+    // Fix: Check payment method to avoid NaN error for string IDs (Paypalych)
+    if (payment.method === "paypalych") {
+        // For Paypalych, we rely on webhooks updating the status in DB.
+        // We just return the current status from DB.
+        return NextResponse.json({ success: true, status: payment.status })
+    }
+
+    // Logic for CryptoBot
     const invoice = await checkInvoice(Number(paymentId))
     const status = (invoice as { status?: string } | undefined)?.status ?? "pending"
 
@@ -78,6 +86,15 @@ export async function GET(
         success: true,
         status: "paid",
         message: "Payment confirmed!",
+      })
+    }
+
+    if (status === "expired") {
+      await updatePaymentStatus(paymentId, "expired")
+      return NextResponse.json({
+        success: true,
+        status: "expired",
+        message: "Invoice expired",
       })
     }
 

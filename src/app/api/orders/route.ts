@@ -78,11 +78,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Заполните все поля" }, { status: 400 })
     }
 
-    if (robloxUsername.length < 3 || robloxUsername.length > 50) {
-      return NextResponse.json(
-        { error: "Никнейм должен быть от 3 до 50 символов" },
-        { status: 400 },
-      )
+    if (body.type === "vip") {
+      if (robloxUsername.length < 3 || robloxUsername.length > 50) {
+        return NextResponse.json(
+          { error: "Никнейм должен быть от 3 до 50 символов" },
+          { status: 400 },
+        )
+      }
+    } else {
+      // Для Gamepass (default) лимит 20 символов согласно документации RBXCrate
+      if (robloxUsername.length < 3 || robloxUsername.length > 20) {
+        return NextResponse.json(
+          { error: "Для Gamepass никнейм должен быть от 3 до 20 символов" },
+          { status: 400 },
+        )
+      }
     }
 
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -147,9 +157,17 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      // Calculate cost
-      const settings = await getSettings()
-      const cost = Math.ceil((amount * settings.buyRate) * 100) / 100
+      // Pass 0 as cost to let db.ts handle calculation (with API check if needed)
+      // Or we can rely on manual rate for speed:
+      // const cost = Math.ceil((amount * settings.buyRate) * 100) / 100
+      
+      // We choose 0 to trigger dynamic calculation in createOrder if possible, 
+      // but to optimize speed we should probably just use the manual rate here 
+      // if we don't want the extra API call in createOrder.
+      // However, the user specifically asked to pass 0 to let createOrder handle it 
+      // (even though createOrder now checks if cost is 0).
+      // Actually, user said: "Давайте передадим 0, чтобы сработала логика в db.ts (с запросом к API), так как точность статистики прибыли важнее 500мс задержки"
+      const cost = 0
 
       const newOrder: Order = {
         id: orderId,
@@ -172,6 +190,7 @@ export async function POST(req: NextRequest) {
         robloxUsername,
         robuxAmount: amount,
         placeId,
+        isPreOrder: true,
       })
 
       if (rbxResponse.success && rbxResponse.data?.orderId) {
@@ -181,6 +200,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, orderId })
     } catch (innerError) {
       console.error("RBX order creation failed:", innerError)
+
+      // Issue 4 Fix: Race Condition & Double Refund
+      // If client.orders.createGamepass times out but actually creates an order on RBXCrate,
+      // and we refund here, the user gets money + robux.
+      //
+      // Solution:
+      // 1. Only refund if we are 100% sure the order WAS NOT created (e.g. validation error).
+      // 2. If it's a network error (timeout, 500, etc.), we DO NOT refund immediately.
+      //    We leave the order as 'processing' (which is set in addOrder).
+      //    The sync-orders cron job will eventually check this order.
+      //    If RBXCrate has it -> it will update status to 'completed'/'failed'.
+      //    If RBXCrate does NOT have it -> sync-orders will mark as failed and refund after 15m.
+
+      const isNetworkError = 
+        String(innerError).includes("timeout") || 
+        String(innerError).includes("ECONNRESET") ||
+        String(innerError).includes("500") ||
+        String(innerError).includes("502") ||
+        String(innerError).includes("504");
+
+      if (isNetworkError) {
+        console.warn(`Potential network error for order ${orderId}. Skipping immediate refund to avoid race condition.`)
+        // Return success to frontend so they don't retry immediately? 
+        // Or return error but saying "Order is processing, please wait"?
+        return NextResponse.json({ success: true, orderId, message: "Заказ создан, но ответ от поставщика задерживается. Статус обновится автоматически." })
+      }
 
       const errorMessage =
         innerError instanceof Error

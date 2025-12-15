@@ -3,7 +3,7 @@ import crypto from "crypto"
 import { getSettings } from "@/lib/settings"
 import { getPayment, addToUserBalance, addToReferralBalance } from "@/lib/db"
 import { prisma } from "@/lib/prisma"
-import { sendTelegramNotification } from "@/lib/telegram"
+import { sendTelegramNotification, escapeHtml } from "@/lib/telegram"
 
 export async function POST(req: NextRequest) {
   try {
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
         const payment = await getPayment(paymentId)
         if (payment) {
           await addToUserBalance(payment.userId, payment.amount)
-          const text = `💎 <b>Баланс пополнен!</b>\n\n💰 <b>Сумма:</b> <code>${payment.amount.toFixed(2)} ₽</code>\n\n✨ Теперь вы можете оплатить покупки!`
+          const text = `💎 <b>Баланс пополнен!</b>\n\n💰 <b>Сумма:</b> <code>${escapeHtml(payment.amount.toFixed(2))} ₽</code>\n\n✨ Теперь вы можете оплатить покупки!`
           await sendTelegramNotification(
             payment.userId,
             text,
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
                 await addToReferralBalance(user.referrerId, bonus)
                 await sendTelegramNotification(
                   user.referrerId,
-                  `💸 <b>Реферальный бонус!</b>\n\n💰 <b>Сумма:</b> <code>${bonus.toFixed(2)} ₽</code>\n👤 <b>Реферал:</b> ${user.firstName}\n\n🚀 Спасибо, что приглашаете друзей!`
+                  `💸 <b>Реферальный бонус!</b>\n\n💰 <b>Сумма:</b> <code>${escapeHtml(bonus.toFixed(2))} ₽</code>\n👤 <b>Реферал:</b> ${escapeHtml(user.firstName)}\n\n🚀 Спасибо, что приглашаете друзей!`
                 )
               }
           }

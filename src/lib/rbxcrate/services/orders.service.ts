@@ -16,9 +16,9 @@ import {
 export class OrdersService {
   constructor(private http: HttpClient) {}
 
-  private validateUsername(username: string) {
-    if (username.length < 3 || username.length > 20) {
-      throw new RbxCrateValidationError("Username must be between 3 and 20 characters");
+  private validateUsername(username: string, maxLength: number = 20) {
+    if (username.length < 3 || username.length > maxLength) {
+      throw new RbxCrateValidationError(`Username must be between 3 and ${maxLength} characters`);
     }
   }
 
@@ -29,7 +29,7 @@ export class OrdersService {
   }
 
   async createGamepass(data: CreateGamepassOrderRequest): Promise<CreateGamepassOrderResponse> {
-    this.validateUsername(data.robloxUsername);
+    this.validateUsername(data.robloxUsername, 20);
     this.validateAmount(data.robuxAmount);
     return this.http.request("/orders/gamepass", "POST", data);
   }
@@ -39,7 +39,7 @@ export class OrdersService {
   }
 
   async createVipServer(data: CreateVipServerOrderRequest): Promise<CreateVipServerOrderResponse> {
-    this.validateUsername(data.robloxUsername);
+    this.validateUsername(data.robloxUsername, 50);
     this.validateAmount(data.robuxAmount);
     return this.http.request("/orders/vip-server", "POST", data);
   }

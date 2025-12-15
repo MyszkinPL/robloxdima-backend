@@ -7,7 +7,13 @@ import { OrderStatus } from "@/lib/rbxcrate/types"
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization") || ""
   const secret = process.env.CRON_SECRET
-  if (!secret || auth !== `Bearer ${secret}`) {
+
+  if (!secret) {
+    console.error("CRON_SECRET is not set")
+    return NextResponse.json({ error: "Server misconfiguration" }, { status: 500 })
+  }
+
+  if (auth !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 

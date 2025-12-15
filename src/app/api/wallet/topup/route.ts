@@ -82,8 +82,14 @@ export async function POST(req: NextRequest) {
     const amount = Math.ceil(rawAmount * 100) / 100
     const description = `Пополнение баланса (${user.username || user.firstName})`
 
+    // Determine Base URL dynamically
+    const host = req.headers.get("host") || "rbtrade.org"
+    const protocol = host.includes("localhost") ? "http" : "https"
+    const baseUrl = `${protocol}://${host}`
+
     let paymentUrl = ""
     let paymentId = ""
+    let amountToPay = amount // Amount to be billed (includes commission)
 
     if (method === "paypalych") {
       if (!settings.isPaypalychEnabled) {
@@ -96,16 +102,26 @@ export async function POST(req: NextRequest) {
       // Generate a custom ID for PayPalych order_id
       const orderId = `${userId.slice(0, 5)}-${Date.now()}`
       
+      // Calculate amount with commission
+      let commission = 0;
+      if (subMethod === "sbp") {
+        commission = settings.paypalychCommissionSBP;
+      } else {
+        commission = settings.paypalychCommissionCard; // Default to card or other
+      }
+      
+      amountToPay = Math.ceil((amount + (amount * commission / 100)) * 100) / 100;
+      
       const bill = await paypalych.createBill({
-        amount,
+        amount: amountToPay,
         shop_id: settings.paypalychShopId,
         order_id: orderId,
         description: description,
         type: "NORMAL",
         currency_in: "RUB",
         payer_pays_commission: 1, // Customer pays commission
-        success_url: "https://rbtrade.org/payment/success",
-        fail_url: "https://rbtrade.org/payment/fail",
+        success_url: `${baseUrl}/payment/success`,
+        fail_url: `${baseUrl}/payment/fail`,
         payment_method: subMethod === "sbp" ? "SBP" : subMethod === "card" ? "BANK_CARD" : undefined,
       })
 
@@ -117,19 +133,17 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Метод оплаты временно недоступен" }, { status: 400 })
       }
 
-      let invoiceAmount = amount
       if (settings.cryptoBotCommission > 0) {
-        invoiceAmount = amount + (amount * settings.cryptoBotCommission / 100)
-        // Round to 2 decimals to be safe, though createInvoice might handle it
-        invoiceAmount = Math.ceil(invoiceAmount * 100) / 100
+        amountToPay = amount + (amount * settings.cryptoBotCommission / 100)
+        amountToPay = Math.ceil(amountToPay * 100) / 100
       }
 
       const invoice = await createInvoice(
-        invoiceAmount,
+        amountToPay,
         description,
         user.id,
         "viewItem",
-        "https://rbtrade.org/payment/success"
+        `${baseUrl}/payment/success`
       )
   
       type InvoiceShape = {
@@ -146,13 +160,16 @@ export async function POST(req: NextRequest) {
     const payment: Payment = {
       id: paymentId,
       userId: user.id,
-      amount,
+      amount: amount, // Amount to credit (without commission)
       currency: "RUB",
       status: "pending",
       invoiceUrl: paymentUrl,
       createdAt: new Date().toISOString(),
       method: method,
-      providerData: null,
+      providerData: JSON.stringify({ 
+        commissionAdded: Math.ceil((amountToPay - amount) * 100) / 100, 
+        totalBill: amountToPay 
+      }),
     }
 
     await createPayment(payment)

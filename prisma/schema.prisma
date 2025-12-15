@@ -12,17 +12,17 @@ model User {
   firstName String
   photoUrl  String?
   role      String   @default("user") // 'user' | 'admin'
-  balance   Float    @default(0)
+  balance   Decimal  @default(0) @db.Decimal(10, 2)
   isBanned  Boolean  @default(false)
   createdAt DateTime @default(now())
   referrerId String?
-  referralBalance Float @default(0)
+  referralBalance Decimal @default(0) @db.Decimal(10, 2)
   
   orders    Order[]
   payments  Payment[]
   logs      Log[]
   referrals User[]    @relation("UserReferrals")
-  referrer  User?     @relation("UserReferrals", fields: [referrerId], references: [id])
+  referrer  User?     @relation("UserReferrals", fields: [referrerId], references: [id], onDelete: SetNull)
 
   @@map("users")
 }
@@ -47,13 +47,15 @@ model Order {
   username  String   // Roblox username
   type      String   @default("gamepass")
   amount    Int
-  price     Float
-  cost      Float    @default(0) // Cost of goods sold (what we paid)
+  price     Decimal  @db.Decimal(10, 2)
+  cost      Decimal  @default(0) @db.Decimal(10, 2) // Cost of goods sold (what we paid)
   status    String   // 'pending' | 'completed' | 'cancelled'
   placeId   String
   rbxOrderId String?  @unique
+  notified   Boolean  @default(false)
   createdAt DateTime @default(now())
-
+  updatedAt DateTime @updatedAt @default(now())
+  
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("orders")
@@ -65,7 +67,7 @@ model Order {
 model Payment {
   id         String   @id // Invoice ID from CryptoBot or UUID
   userId     String
-  amount     Float
+  amount     Decimal  @db.Decimal(10, 2)
   currency   String
   status     String   // 'pending' | 'paid' | 'expired'
   invoiceUrl String?
@@ -81,8 +83,8 @@ model Payment {
 
 model Settings {
   id                  Int     @id @default(1)
-  rate                Float   @default(0.5)
-  buyRate             Float   @default(0.0) // Cost rate per Robux
+  rate                Decimal @default(0.5) @db.Decimal(10, 4)
+  buyRate             Decimal @default(0.0) @db.Decimal(10, 4) // Cost rate per Robux
   maintenance         Boolean @default(false)
   rbxKey              String?
   cryptoBotToken      String?
@@ -93,20 +95,20 @@ model Settings {
   telegramBotUsername String?
   faq                 String? // JSON string for FAQ items
   supportLink         String?
-  referralPercent     Float   @default(5.0)
+  referralPercent     Decimal @default(5.0) @db.Decimal(5, 2)
 
   pricingMode         String  @default("manual") // manual, auto
   markupType          String  @default("percent") // percent, fixed
-  markupValue         Float   @default(0)
+  markupValue         Decimal @default(0) @db.Decimal(10, 2)
 
   isCryptoBotEnabled  Boolean @default(true)
-  isStarsEnabled      Boolean @default(true)
   isPaypalychEnabled  Boolean @default(false)
   paypalychShopId     String?
   paypalychToken      String?
-  paypalychCommissionCard Float @default(0)
-  paypalychCommissionSBP  Float @default(0)
-  cryptoBotCommission     Float @default(0)
+  paypalychCommissionCard Decimal @default(0) @db.Decimal(5, 2)
+  paypalychCommissionSBP  Decimal @default(0) @db.Decimal(5, 2)
+  cryptoBotCommission     Decimal @default(0) @db.Decimal(5, 2)
+  jwtSecret               String? // Secret for signing sessions, managed via Admin UI or auto-generated
 
   @@map("settings")
 }

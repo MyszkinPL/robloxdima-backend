@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import sys
 from typing import Callable, Awaitable
 
 from aiogram import Bot, Dispatcher
@@ -16,6 +18,7 @@ from .scheduler import start_scheduler
 
 
 async def main() -> None:
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     config = load_config()
 
     pool = await create_pool(config.database_url)

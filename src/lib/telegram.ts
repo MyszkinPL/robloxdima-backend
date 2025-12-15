@@ -1,5 +1,15 @@
 import { getSettings } from "@/lib/settings"
 
+// Helper to escape HTML special characters for Telegram messages
+export function escapeHtml(unsafe: string | number | null | undefined): string {
+  if (unsafe === null || unsafe === undefined) return ""
+  return String(unsafe)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+}
+
 export async function sendTelegramNotification(
   userId: string,
   text: string,

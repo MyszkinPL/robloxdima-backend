@@ -2,6 +2,9 @@ import { NextResponse } from "next/server"
 import { getSettings } from "@/lib/settings"
 import { getCurrentUserRate } from "@/lib/pricing"
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export async function GET() {
   const settings = await getSettings()
   const rate = await getCurrentUserRate()
@@ -13,7 +16,6 @@ export async function GET() {
     supportLink: settings.supportLink,
     faq: settings.faq,
     isCryptoBotEnabled: settings.isCryptoBotEnabled,
-    isStarsEnabled: settings.isStarsEnabled,
     isPaypalychEnabled: settings.isPaypalychEnabled,
     referralPercent: settings.referralPercent,
     paypalychCommissionCard: settings.paypalychCommissionCard,

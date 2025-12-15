@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 export interface Settings {
   rate: number;
@@ -18,13 +19,13 @@ export interface Settings {
   markupType: string;
   markupValue: number;
   isCryptoBotEnabled: boolean;
-  isStarsEnabled: boolean;
   isPaypalychEnabled: boolean;
   paypalychShopId: string;
   paypalychToken: string;
   paypalychCommissionCard: number;
   paypalychCommissionSBP: number;
   cryptoBotCommission: number;
+  jwtSecret?: string;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -45,13 +46,13 @@ const DEFAULT_SETTINGS: Settings = {
   markupType: "percent",
   markupValue: 0,
   isCryptoBotEnabled: true,
-  isStarsEnabled: true,
   isPaypalychEnabled: false,
   paypalychShopId: "",
   paypalychToken: "",
   paypalychCommissionCard: 0,
   paypalychCommissionSBP: 0,
   cryptoBotCommission: 0,
+  jwtSecret: undefined,
 };
 
 export async function getSettings(): Promise<Settings> {
@@ -75,8 +76,8 @@ export async function getSettings(): Promise<Settings> {
     });
     
     return {
-      rate: newSettings.rate,
-      buyRate: newSettings.buyRate || 0.0,
+      rate: new Prisma.Decimal(newSettings.rate).toNumber(),
+      buyRate: new Prisma.Decimal(newSettings.buyRate || 0.0).toNumber(),
       maintenance: newSettings.maintenance,
       rbxKey: newSettings.rbxKey || "",
       cryptoBotToken: newSettings.cryptoBotToken || "",
@@ -87,24 +88,24 @@ export async function getSettings(): Promise<Settings> {
       telegramBotUsername: newSettings.telegramBotUsername || "",
       faq: newSettings.faq || "[]",
       supportLink: newSettings.supportLink || "",
-      referralPercent: newSettings.referralPercent,
+      referralPercent: new Prisma.Decimal(newSettings.referralPercent).toNumber(),
       pricingMode: newSettings.pricingMode,
       markupType: newSettings.markupType,
-      markupValue: newSettings.markupValue,
+      markupValue: new Prisma.Decimal(newSettings.markupValue).toNumber(),
       isCryptoBotEnabled: newSettings.isCryptoBotEnabled,
-      isStarsEnabled: newSettings.isStarsEnabled,
       isPaypalychEnabled: newSettings.isPaypalychEnabled,
       paypalychShopId: newSettings.paypalychShopId || "",
       paypalychToken: newSettings.paypalychToken || "",
-      paypalychCommissionCard: newSettings.paypalychCommissionCard,
-      paypalychCommissionSBP: newSettings.paypalychCommissionSBP,
-      cryptoBotCommission: newSettings.cryptoBotCommission,
+      paypalychCommissionCard: new Prisma.Decimal(newSettings.paypalychCommissionCard).toNumber(),
+      paypalychCommissionSBP: new Prisma.Decimal(newSettings.paypalychCommissionSBP).toNumber(),
+      cryptoBotCommission: new Prisma.Decimal(newSettings.cryptoBotCommission).toNumber(),
+      jwtSecret: newSettings.jwtSecret || undefined,
     };
   }
 
   return {
-    rate: settings.rate,
-    buyRate: settings.buyRate || 0.0,
+    rate: new Prisma.Decimal(settings.rate).toNumber(),
+    buyRate: new Prisma.Decimal(settings.buyRate || 0.0).toNumber(),
     maintenance: settings.maintenance,
     rbxKey: settings.rbxKey || "",
     cryptoBotToken: settings.cryptoBotToken || "",
@@ -115,18 +116,18 @@ export async function getSettings(): Promise<Settings> {
     telegramBotUsername: settings.telegramBotUsername || "",
     faq: settings.faq || "[]",
     supportLink: settings.supportLink || "",
-    referralPercent: settings.referralPercent,
+    referralPercent: new Prisma.Decimal(settings.referralPercent).toNumber(),
     pricingMode: settings.pricingMode,
     markupType: settings.markupType,
-    markupValue: settings.markupValue,
+    markupValue: new Prisma.Decimal(settings.markupValue).toNumber(),
     isCryptoBotEnabled: settings.isCryptoBotEnabled,
-    isStarsEnabled: settings.isStarsEnabled,
     isPaypalychEnabled: settings.isPaypalychEnabled,
     paypalychShopId: settings.paypalychShopId || "",
     paypalychToken: settings.paypalychToken || "",
-    paypalychCommissionCard: settings.paypalychCommissionCard,
-    paypalychCommissionSBP: settings.paypalychCommissionSBP,
-    cryptoBotCommission: settings.cryptoBotCommission,
+    paypalychCommissionCard: new Prisma.Decimal(settings.paypalychCommissionCard).toNumber(),
+    paypalychCommissionSBP: new Prisma.Decimal(settings.paypalychCommissionSBP).toNumber(),
+    cryptoBotCommission: new Prisma.Decimal(settings.cryptoBotCommission).toNumber(),
+    jwtSecret: settings.jwtSecret || undefined,
   };
 }
 
@@ -151,7 +152,6 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
       markupType: newSettings.markupType,
       markupValue: newSettings.markupValue,
       isCryptoBotEnabled: newSettings.isCryptoBotEnabled,
-      isStarsEnabled: newSettings.isStarsEnabled,
       isPaypalychEnabled: newSettings.isPaypalychEnabled,
       paypalychShopId: newSettings.paypalychShopId || null,
       paypalychToken: newSettings.paypalychToken || null,
@@ -178,7 +178,6 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
       markupType: newSettings.markupType ?? DEFAULT_SETTINGS.markupType,
       markupValue: newSettings.markupValue ?? DEFAULT_SETTINGS.markupValue,
       isCryptoBotEnabled: newSettings.isCryptoBotEnabled ?? DEFAULT_SETTINGS.isCryptoBotEnabled,
-      isStarsEnabled: newSettings.isStarsEnabled ?? DEFAULT_SETTINGS.isStarsEnabled,
       isPaypalychEnabled: newSettings.isPaypalychEnabled ?? DEFAULT_SETTINGS.isPaypalychEnabled,
       paypalychShopId: newSettings.paypalychShopId,
       paypalychToken: newSettings.paypalychToken,
@@ -189,8 +188,8 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
   });
 
   return {
-    rate: updated.rate,
-    buyRate: updated.buyRate || 0.0,
+    rate: new Prisma.Decimal(updated.rate).toNumber(),
+    buyRate: new Prisma.Decimal(updated.buyRate || 0.0).toNumber(),
     maintenance: updated.maintenance,
     rbxKey: updated.rbxKey || "",
     cryptoBotToken: updated.cryptoBotToken || "",
@@ -201,17 +200,17 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
     telegramBotUsername: updated.telegramBotUsername || "",
     faq: updated.faq || "[]",
     supportLink: updated.supportLink || "",
-    referralPercent: updated.referralPercent,
+    referralPercent: new Prisma.Decimal(updated.referralPercent).toNumber(),
     pricingMode: updated.pricingMode,
     markupType: updated.markupType,
-    markupValue: updated.markupValue,
+    markupValue: new Prisma.Decimal(updated.markupValue).toNumber(),
     isCryptoBotEnabled: updated.isCryptoBotEnabled,
-    isStarsEnabled: updated.isStarsEnabled,
     isPaypalychEnabled: updated.isPaypalychEnabled,
     paypalychShopId: updated.paypalychShopId || "",
     paypalychToken: updated.paypalychToken || "",
-    paypalychCommissionCard: updated.paypalychCommissionCard,
-    paypalychCommissionSBP: updated.paypalychCommissionSBP,
-    cryptoBotCommission: updated.cryptoBotCommission,
+    paypalychCommissionCard: new Prisma.Decimal(updated.paypalychCommissionCard).toNumber(),
+    paypalychCommissionSBP: new Prisma.Decimal(updated.paypalychCommissionSBP).toNumber(),
+    cryptoBotCommission: new Prisma.Decimal(updated.cryptoBotCommission).toNumber(),
+    jwtSecret: updated.jwtSecret || undefined,
   };
 }

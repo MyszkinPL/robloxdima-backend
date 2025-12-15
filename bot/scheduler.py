@@ -1,9 +1,12 @@
 import asyncio
+import logging
 from aiogram import Bot
 from .backend_api import BackendApiClient
 
+logger = logging.getLogger(__name__)
+
 async def start_scheduler(bot: Bot, api: BackendApiClient):
-    print("Scheduler started")
+    logger.info("Scheduler started")
     while True:
         try:
             updates = await api.sync_orders()
@@ -33,6 +36,6 @@ async def start_scheduler(bot: Bot, api: BackendApiClient):
                         f"Заказ #{order_id} на {amount} R$ не удалось выполнить.{refunded_text}"
                     )
         except Exception as e:
-            print(f"Scheduler error: {e}")
+            logger.error(f"Scheduler error: {e}")
         
         await asyncio.sleep(30)

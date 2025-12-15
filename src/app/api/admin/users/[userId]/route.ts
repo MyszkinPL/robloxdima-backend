@@ -23,6 +23,12 @@ export async function PATCH(
     }
 
     const { userId } = await context.params
+    
+    // Prevent actions on self
+    if (userId === admin.id) {
+        return NextResponse.json({ error: "Cannot modify your own account" }, { status: 403 })
+    }
+
     const body = await req.json()
 
     if (Object.prototype.hasOwnProperty.call(body, "role")) {
@@ -36,13 +42,25 @@ export async function PATCH(
     }
 
     if (Object.prototype.hasOwnProperty.call(body, "balance")) {
-      const balance = Number(body.balance)
-      await updateUserBalance(userId, balance)
-      await logAction(userId, "BALANCE_UPDATE", JSON.stringify({
-        targetUserId: userId,
-        initiatorUserId: admin.id,
-        newBalance: balance,
-      }))
+      const rawBalance = body.balance
+      
+      // Strict validation: Skip update if empty string or null (prevents accidental zeroing)
+      if (rawBalance === "" || rawBalance === null) {
+         // Optionally log warning or just skip
+      } else {
+          const balance = Number(rawBalance)
+          
+          if (isNaN(balance)) {
+            return NextResponse.json({ error: "Invalid balance format" }, { status: 400 })
+          }
+
+          await updateUserBalance(userId, balance)
+          await logAction(userId, "BALANCE_UPDATE", JSON.stringify({
+            targetUserId: userId,
+            initiatorUserId: admin.id,
+            newBalance: balance,
+          }))
+      }
     }
 
     if (Object.prototype.hasOwnProperty.call(body, "isBanned")) {

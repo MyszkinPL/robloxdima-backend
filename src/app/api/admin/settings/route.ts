@@ -12,7 +12,28 @@ export async function GET() {
     }
 
     const settings = await prisma.settings.findFirst()
-    return NextResponse.json({ settings: settings || {} })
+    
+    // Issue 5b Fix: Mask API keys in admin settings
+    if (settings) {
+        return NextResponse.json({
+            settings: {
+                ...settings,
+                // Mask keys if they exist
+                rbxKey: settings.rbxKey ? (settings.rbxKey.substring(0, 4) + '***') : "",
+                cryptoBotToken: settings.cryptoBotToken ? (settings.cryptoBotToken.substring(0, 4) + '***') : "",
+                telegramBotToken: settings.telegramBotToken ? (settings.telegramBotToken.substring(0, 4) + '***') : "",
+                paypalychToken: settings.paypalychToken ? (settings.paypalychToken.substring(0, 4) + '***') : "",
+                
+                // Add flags to tell frontend that keys are set
+                isRbxKeySet: !!settings.rbxKey,
+                isCryptoBotTokenSet: !!settings.cryptoBotToken,
+                isTelegramBotTokenSet: !!settings.telegramBotToken,
+                isPaypalychTokenSet: !!settings.paypalychToken
+            }
+        })
+    }
+    
+    return NextResponse.json({ settings: {} })
   } catch (error) {
     console.error("GET /api/admin/settings error:", error)
     return NextResponse.json(
@@ -66,6 +87,14 @@ export async function PATCH(req: Request) {
     // Use findFirst to handle cases where ID might not be 1 or to ensure we get the single settings row
     const existing = await prisma.settings.findFirst()
 
+    // Filter out masked keys or empty strings if they shouldn't overwrite existing keys
+    // If frontend sends "***", it means "don't change"
+    // If frontend sends empty string and it was masked, treat as "don't change" (or explicit delete? Usually delete requires explicit action)
+    // For now: only update if value is NOT containing "***" and is not undefined.
+    // Actually, safer logic: Only update if value is provided and does not look like a mask.
+    
+    const shouldUpdate = (val: any) => val !== undefined && val !== null && !String(val).includes("***");
+
     let updated
     if (existing) {
       updated = await prisma.settings.update({
@@ -74,17 +103,17 @@ export async function PATCH(req: Request) {
             rate: rate !== undefined ? rate : undefined,
             buyRate: buyRate !== undefined ? buyRate : undefined,
             maintenance: maintenance !== undefined ? maintenance : undefined,
-            rbxKey: rbxKey !== undefined ? rbxKey : undefined,
-            cryptoBotToken: cryptoBotToken !== undefined ? cryptoBotToken : undefined,
+            rbxKey: shouldUpdate(rbxKey) ? rbxKey : undefined,
+            cryptoBotToken: shouldUpdate(cryptoBotToken) ? cryptoBotToken : undefined,
             cryptoBotTestnet: cryptoBotTestnet !== undefined ? cryptoBotTestnet : undefined,
             cryptoBotAllowedAssets: cryptoBotAllowedAssets !== undefined ? cryptoBotAllowedAssets : undefined,
             cryptoBotFiatCurrency: cryptoBotFiatCurrency !== undefined ? cryptoBotFiatCurrency : undefined,
-            telegramBotToken: telegramBotToken !== undefined ? telegramBotToken : undefined,
+            telegramBotToken: shouldUpdate(telegramBotToken) ? telegramBotToken : undefined,
             telegramBotUsername: telegramBotUsername !== undefined ? telegramBotUsername : undefined,
             isCryptoBotEnabled: isCryptoBotEnabled !== undefined ? isCryptoBotEnabled : undefined,
             isPaypalychEnabled: isPaypalychEnabled !== undefined ? isPaypalychEnabled : undefined,
             paypalychShopId: paypalychShopId !== undefined ? paypalychShopId : undefined,
-            paypalychToken: paypalychToken !== undefined ? paypalychToken : undefined,
+            paypalychToken: shouldUpdate(paypalychToken) ? paypalychToken : undefined,
             paypalychCommissionCard: paypalychCommissionCard !== undefined ? paypalychCommissionCard : undefined,
             paypalychCommissionSBP: paypalychCommissionSBP !== undefined ? paypalychCommissionSBP : undefined,
             cryptoBotCommission: cryptoBotCommission !== undefined ? cryptoBotCommission : undefined,
@@ -97,7 +126,16 @@ export async function PATCH(req: Request) {
         },
       })
       console.log("Settings updated successfully:", updated)
-      return NextResponse.json({ settings: updated })
+      // Return masked again
+      return NextResponse.json({ 
+          settings: {
+             ...updated,
+             rbxKey: updated.rbxKey ? (updated.rbxKey.substring(0, 4) + '***') : "",
+             cryptoBotToken: updated.cryptoBotToken ? (updated.cryptoBotToken.substring(0, 4) + '***') : "",
+             telegramBotToken: updated.telegramBotToken ? (updated.telegramBotToken.substring(0, 4) + '***') : "",
+             paypalychToken: updated.paypalychToken ? (updated.paypalychToken.substring(0, 4) + '***') : "",
+          } 
+      })
     } else {
       updated = await prisma.settings.create({
         data: {

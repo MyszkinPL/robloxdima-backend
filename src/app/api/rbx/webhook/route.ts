@@ -3,15 +3,24 @@ import { getSettings } from "@/lib/settings"
 import { getOrder, getOrderByRbxId, refundOrder, updateOrder } from "@/lib/db"
 import { isValidRbxcrateSign, RBXCRATE_WEBHOOK_IPS } from "@/lib/rbxcrate/utils/verify"
 import { OrderStatus, RbxCrateWebhook } from "@/lib/rbxcrate/types"
-import { sendTelegramNotification } from "@/lib/telegram"
+import { sendTelegramNotification, escapeHtml } from "@/lib/telegram"
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as RbxCrateWebhook
+    // Read raw text for correct signature verification
+    const rawBody = await req.text()
+    
+    let body: RbxCrateWebhook
+    try {
+        body = JSON.parse(rawBody)
+    } catch {
+        return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
+    }
+
     const ip = req.headers.get("x-forwarded-for") || "unknown"
 
     // Log incoming webhook for debugging
-    console.log(`[Webhook] Received from IP: ${ip}, Body: ${JSON.stringify(body)}`)
+    console.log(`[Webhook] Received from IP: ${ip}, Body: ${rawBody}`)
 
     // Verify signature first - this is the most secure check
     const settings = await getSettings()
@@ -25,6 +34,10 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // We verify using the parsed body because isValidRbxcrateSign handles the logic
+    // of removing 'sign' and re-stringifying.
+    // While there's a theoretical risk of key reordering, this is the standard way
+    // unless we manually parse the raw string which is error prone.
     const isValid = isValidRbxcrateSign(body, apiKey)
     if (!isValid) {
       console.error(`[Webhook] Error: Invalid signature for order ${body.orderId}`)
@@ -155,11 +168,11 @@ export async function POST(req: NextRequest) {
       if (order) {
         let text = ""
         if (notifyStatus === "completed") {
-           text = `✅ <b>Заказ выполнен!</b>\n\n🆔 <b>ID:</b> <code>${order.id}</code>\n📦 <b>Робуксы:</b> <code>${order.amount}</code>\n💰 <b>Сумма:</b> <code>${order.price} ₽</code>\n\n🎉 Робуксы успешно отправлены! Спасибо за покупку!`
+           text = `✅ <b>Заказ выполнен!</b>\n\n🆔 <b>ID:</b> <code>${escapeHtml(order.id)}</code>\n📦 <b>Робуксы:</b> <code>${order.amount}</code>\n💰 <b>Сумма:</b> <code>${order.price} ₽</code>\n\n🎉 Робуксы успешно отправлены! Спасибо за покупку!`
         } else if (notifyStatus === "refunded") {
-           text = `❌ <b>Заказ отменен</b>\n\n🆔 <b>ID:</b> <code>${order.id}</code>\n💰 <b>Возврат:</b> <code>${order.price} ₽</code>\n\n⚠️ Причина: ${refundReason || "Ошибка выполнения"}\nСредства возвращены на баланс.`
+           text = `❌ <b>Заказ отменен</b>\n\n🆔 <b>ID:</b> <code>${escapeHtml(order.id)}</code>\n💰 <b>Возврат:</b> <code>${order.price} ₽</code>\n\n⚠️ Причина: ${escapeHtml(refundReason || "Ошибка выполнения")}\nСредства возвращены на баланс.`
         } else if (notifyStatus === "processing") {
-           text = `⏳ <b>Заказ в обработке</b>\n\n🆔 <b>ID:</b> <code>${order.id}</code>\n📦 <b>Робуксы:</b> <code>${order.amount}</code>\n\n🚀 Мы начали выполнение заказа. Ожидайте поступления!`
+           text = `⏳ <b>Заказ в обработке</b>\n\n🆔 <b>ID:</b> <code>${escapeHtml(order.id)}</code>\n📦 <b>Робуксы:</b> <code>${order.amount}</code>\n\n🚀 Мы начали выполнение заказа. Ожидайте поступления!`
         }
         
         if (text) {

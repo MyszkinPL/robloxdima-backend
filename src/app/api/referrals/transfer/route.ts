@@ -11,29 +11,45 @@ export async function POST() {
 
     const userId = sessionUser.id
 
-    const user = await prisma.user.findUnique({ where: { id: userId } })
-    if (!user) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 })
-    }
+    // Fix: Race Condition - Use transaction for read and update
+    const transferredAmount = await prisma.$transaction(async (tx) => {
+        // 1. Block and read fresh balance inside transaction
+        const user = await tx.user.findUnique({
+            where: { id: userId }
+        })
+        
+        if (!user || user.referralBalance.lte(0)) {
+            return 0
+        }
 
-    if (user.referralBalance <= 0) {
-        return NextResponse.json({ error: "No funds to transfer" }, { status: 400 })
-    }
+        const amount = user.referralBalance
 
-    const amount = user.referralBalance
-
-    // Transaction to ensure atomicity
-    await prisma.$transaction([
-        prisma.user.update({
+        // 2. Zero out and credit
+        await tx.user.update({
             where: { id: userId },
             data: {
-                referralBalance: { set: 0 },
+                referralBalance: 0, // Set to exactly 0
                 balance: { increment: amount }
             }
         })
-    ])
+        
+        // 3. Log action (optional but good practice)
+        await tx.log.create({
+            data: {
+                userId,
+                action: "REF_TRANSFER",
+                details: `Transfer ${amount} from referral balance`
+            }
+        })
 
-    return NextResponse.json({ success: true, transferred: amount })
+        return amount
+    })
+
+    if (transferredAmount === 0) {
+        return NextResponse.json({ error: "No funds to transfer" }, { status: 400 })
+    }
+
+    return NextResponse.json({ success: true, transferred: transferredAmount })
 
   } catch (error) {
     console.error("POST /api/referrals/transfer error:", error)

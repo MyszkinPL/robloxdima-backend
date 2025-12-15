@@ -144,6 +144,7 @@ export async function POST(req: NextRequest) {
         robloxUsername,
         robuxAmount: amount,
         placeId,
+        isPreOrder: true,
       })
 
       if (rbxResponse.success && rbxResponse.data?.orderId) {
