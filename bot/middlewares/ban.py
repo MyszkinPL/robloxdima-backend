@@ -14,14 +14,24 @@ class BanMiddleware(BaseMiddleware):
     async def __call__(
         self,
         handler: Callable[[Message, Dict[str, Any]], Awaitable[Any]],
-        event: Message | CallbackQuery,
+        event: Message | CallbackQuery | Any,
         data: Dict[str, Any],
     ) -> Any:
         pool: asyncpg.Pool = data.get("pool")
         if not pool:
             return await handler(event, data)
         
-        user = event.from_user
+        user = data.get("event_from_user")
+        if not user:
+            # Fallback for Update events if event_from_user is not yet populated
+            if hasattr(event, "message") and event.message:
+                user = event.message.from_user
+            elif hasattr(event, "callback_query") and event.callback_query:
+                user = event.callback_query.from_user
+            elif hasattr(event, "inline_query") and event.inline_query:
+                user = event.inline_query.from_user
+            elif hasattr(event, "from_user"):
+                user = event.from_user
             
         user_id = user.id if user else None
 
