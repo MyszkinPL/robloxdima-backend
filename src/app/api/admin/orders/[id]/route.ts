@@ -31,6 +31,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
+    // ДОБАВИТЬ ЭТО:
+    if (order.status === 'completed') {
+        return NextResponse.json({ error: "Нельзя удалять выполненные заказы, это сломает статистику." }, { status: 400 })
+    }
+
     // Delete the order
     await prisma.order.delete({
       where: { id },

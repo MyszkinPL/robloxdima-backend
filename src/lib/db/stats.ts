@@ -28,26 +28,31 @@ export async function getDashboardStats() {
         createdAt: { gte: startOfMonth }
       }
     }),
-    prisma.$queryRaw`
-      SELECT 
-        EXTRACT(MONTH FROM "createdAt") as month, 
-        SUM("price") as revenue
-      FROM "orders"
-      WHERE "status" = 'completed' AND "createdAt" >= ${startOfYear}
-      GROUP BY EXTRACT(MONTH FROM "createdAt")
-      ORDER BY month ASC
-    ` as Promise<{ month: number, revenue: number }[]>
+    // ИСПРАВЛЕНИЕ: Заменили Raw Query на безопасную агрегацию в коде, чтобы избежать SQL Injection и проблем с именами таблиц.
+    // При большом объеме данных (>50k заказов) это может быть медленнее, но безопасно.
+    // Для оптимизации в будущем можно использовать Materialized Views или group by в SQL с точными именами.
+    prisma.order.findMany({
+        where: {
+            status: 'completed',
+            createdAt: { gte: startOfYear }
+        },
+        select: {
+            price: true,
+            createdAt: true
+        }
+    })
   ]);
 
-  // Process monthly revenue into array of 12 numbers
+  // Process monthly revenue
   const monthlyRevenue = new Array(12).fill(0);
-  monthlyRevenueRaw.forEach(r => {
-    // month is 1-12
-    const m = Number(r.month);
-    if (m >= 1 && m <= 12) {
-       monthlyRevenue[m - 1] = Number(r.revenue);
-    }
-  });
+  
+  // Aggregation in memory (Safe from SQL Injection)
+  if (Array.isArray(monthlyRevenueRaw)) {
+      for (const order of monthlyRevenueRaw) {
+          const month = order.createdAt.getMonth(); // 0-11
+          monthlyRevenue[month] += Number(order.price);
+      }
+  }
 
   return {
     ordersCount: totalOrders,

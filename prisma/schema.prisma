@@ -39,6 +39,7 @@ model Log {
   @@map("logs")
   @@index([userId])
   @@index([action])
+  @@index([createdAt])
 }
 
 model Order {
@@ -79,6 +80,7 @@ model Payment {
 
   @@map("payments")
   @@index([userId])
+  @@index([status]) // Added index for status to optimize filtering pending payments
 }
 
 model Settings {

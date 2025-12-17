@@ -187,6 +187,9 @@ export async function updateSettings(newSettings: Partial<Settings>): Promise<Se
     }
   });
 
+  // Reset pricing cache when settings are updated
+  resetPricingCache();
+
   return {
     rate: new Prisma.Decimal(updated.rate).toNumber(),
     buyRate: new Prisma.Decimal(updated.buyRate || 0.0).toNumber(),

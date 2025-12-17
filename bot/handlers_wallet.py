@@ -245,6 +245,16 @@ async def handle_topup_cryptobot(callback: CallbackQuery, api: BackendApiClient)
     try:
         data = await api.create_topup(callback.from_user.id, amount)
     except httpx.HTTPStatusError as e:
+        # Обрабатываем ошибку лимитов (400 Bad Request)
+        if e.response.status_code == 400:
+             try:
+                 error_json = e.response.json()
+                 error_text = error_json.get('error', 'Ошибка создания счета')
+                 await callback.message.edit_text(f"⚠️ {error_text}")
+             except:
+                 await callback.message.edit_text("⚠️ Ошибка валидации данных.")
+             return
+
         text_error = "❌ Не удалось создать счёт. Отправьте /start и попробуйте ещё раз."
         try:
             if e.response is not None and e.response.status_code == 503:

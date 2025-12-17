@@ -52,6 +52,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Payment not found" }, { status: 404 })
     }
 
+    // 🛑 ДОБАВИТЬ ЭТУ ПРОВЕРКУ: Сравниваем суммы
+    // Paypalych может прислать строку "500.00", поэтому парсим
+    const paidAmount = parseFloat(OutSum);
+    const expectedAmount = Number(payment.amount); // В базе decimal/float
+
+    // Допускаем небольшую погрешность (epsilon) для float сравнений
+    if (Math.abs(paidAmount - expectedAmount) > 1.0) {
+        console.error(`Fraud attempt? Paid: ${paidAmount}, Expected: ${expectedAmount}`);
+        return NextResponse.json({ error: "Amount mismatch" }, { status: 400 });
+    }
+
     if (payment.status === "paid") {
       return NextResponse.json({ status: "OK" })
     }

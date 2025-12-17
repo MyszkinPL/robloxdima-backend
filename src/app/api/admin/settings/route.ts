@@ -161,6 +161,8 @@ export async function PATCH(req: Request) {
             faq: faq,
         },
       })
+      
+      resetPricingCache(); // Сброс кэша
       console.log("Settings created successfully:", updated)
       return NextResponse.json({ settings: updated })
     }

@@ -122,8 +122,9 @@ export async function POST(req: NextRequest) {
     }
 
     const currentRate = await getCurrentUserRate()
-    const rawPrice = amount * currentRate
-    const price = Math.ceil(rawPrice * 100) / 100
+    // ИСПРАВЛЕНИЕ: Проблема плавающей точки. Используем toFixed(2) для корректного округления.
+    // 0.1 + 0.2 = 0.30000000000000004 -> toFixed(2) -> "0.30" -> Number -> 0.3
+    const price = Number((amount * currentRate).toFixed(2))
 
     const currentStock = await getCachedStock()
     if (currentStock < amount) {

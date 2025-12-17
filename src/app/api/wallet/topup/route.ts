@@ -61,6 +61,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 })
     }
 
+    // ИСПРАВЛЕНИЕ: Защита от DDoS базы данных "зависшими" платежами.
+    // Ограничиваем количество неоплаченных счетов для одного пользователя.
+    const pendingCount = await prisma.payment.count({
+        where: {
+            userId: user.id,
+            status: "pending"
+        }
+    });
+
+    if (pendingCount >= 3) {
+        return NextResponse.json(
+            { error: "У вас слишком много неоплаченных счетов. Оплатите или отмените старые." },
+            { status: 400 }
+        );
+    }
+
     const existingPayment = await prisma.payment.findFirst({
       where: {
         userId,

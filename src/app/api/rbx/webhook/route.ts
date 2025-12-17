@@ -126,10 +126,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Idempotency check: If order is already in a final state, don't process again
+    // ИСПРАВЛЕНИЕ: Мы убрали предварительную проверку статуса для CANCELLED/ERROR, 
+    // чтобы предотвратить гонку состояний (Double Refund). 
+    // Теперь мы сразу вызываем refundOrder, который атомарно (в транзакции) проверит статус.
     if (
-      order.status === "completed" ||
+      (status !== OrderStatus.Error && status !== OrderStatus.Cancelled) && 
+      (order.status === "completed" ||
       order.status === "cancelled" ||
-      order.status === "failed"
+      order.status === "failed")
     ) {
       console.log(`[Webhook] Order ${orderId} is already ${order.status}. Ignoring webhook update to ${status}.`)
       return NextResponse.json({
@@ -145,7 +149,7 @@ export async function POST(req: NextRequest) {
     let notifyStatus: "completed" | "refunded" | "processing" | null = null
 
     if (status === OrderStatus.Error || status === OrderStatus.Cancelled) {
-      // Only refund if not already refunded (checked above by order.status, but double safety)
+      // ИСПРАВЛЕНИЕ: Не проверяем order.status здесь. Доверяем refundOrder и его транзакции.
       const refundResult = await refundOrder(orderId, {
         source: "rbx_webhook",
         externalStatus: status,
@@ -156,6 +160,9 @@ export async function POST(req: NextRequest) {
       refundReason = refundResult.reason
       if (refundResult.refunded) {
         notifyStatus = "refunded"
+      } else {
+          // Если возврат не прошел (например, уже отменен), логируем это, но отвечаем OK вебхуку
+          console.log(`[Webhook] Refund skipped for ${orderId}: ${refundResult.reason}`);
       }
     } else if (status === OrderStatus.Completed) {
       await updateOrder(orderId, { status: "completed" })
