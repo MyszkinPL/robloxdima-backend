@@ -33,13 +33,16 @@ export async function getCurrentUserRate(): Promise<number> {
         return  settings.rate; 
     } 
 
-    const client = new  RbxCrateClient(settings.rbxKey); 
-    const stock = await  client.stock.getDetailed(); 
+    const client = new RbxCrateClient(settings.rbxKey);
+    const stock = await client.stock.getDetailed();
     
-    // Берем самый дешевый пак или первый попавшийся 
-    const bestPackage = stock.find(s => s.totalRobuxAmount > 0) || stock[0 ]; 
+    // Сортируем по цене (rate) от меньшего к большему и берем самый дешевый с наличием
+    const availableStock = stock.filter(s => s.totalRobuxAmount > 0);
+    availableStock.sort((a, b) => a.rate - b.rate);
     
-    if  (!bestPackage) { 
+    const bestPackage = availableStock[0] || stock[0];
+    
+    if (!bestPackage) { 
         console.warn("[Pricing] No stock data found. Using manual rate." ); 
         return  settings.rate; 
     } 

@@ -81,8 +81,11 @@ export async function createOrder(order: Omit<Order, 'createdAt' | 'status'> & {
         const detailedStock = await client.stock.getDetailed();
         
         if (detailedStock && detailedStock.length > 0) {
-          // Find best rate (lowest)
-          const bestOffer = detailedStock.sort((a, b) => a.rate - b.rate)[0];
+          // Find best rate (lowest) with available stock
+          const availableStock = detailedStock.filter(s => s.totalRobuxAmount > 0);
+          availableStock.sort((a, b) => a.rate - b.rate);
+          
+          const bestOffer = availableStock[0] || detailedStock.sort((a, b) => a.rate - b.rate)[0];
           
           let ratePerOne = bestOffer.rate;
           // Heuristic: if rate > 10, it's likely per 1000 Robux (e.g. 500 RUB)
