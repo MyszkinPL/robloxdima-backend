@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     let failCount = 0;
 
     while (true) {
-        const usersBatch = await prisma.user.findMany({
+        const usersBatch: { id: string }[] = await prisma.user.findMany({
             select: { id: true },
             where: { isBanned: false },
             take: 1000,

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { resetPricingCache } from './pricing';
 
 export interface Settings {
   rate: number;

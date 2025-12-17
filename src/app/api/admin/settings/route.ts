@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/session"
 import { prisma } from "@/lib/db"
+import { resetPricingCache } from "@/lib/pricing"
 
 export const dynamic = "force-dynamic"
 
