@@ -13,8 +13,7 @@ from .config import load_config
 from .db import create_pool, get_bot_token
 from .backend_api import BackendApiClient
 from .middlewares import ThrottlingMiddleware, BanMiddleware, MaintenanceMiddleware
-from . import handlers_start, handlers_wallet, handlers_orders, handlers_calculator, handlers_referrals
-from .scheduler import start_scheduler
+from . import handlers_start
 
 
 async def main() -> None:
@@ -39,10 +38,6 @@ async def main() -> None:
     dp.message.middleware(ThrottlingMiddleware())
 
     dp.include_router(handlers_start.router)
-    dp.include_router(handlers_wallet.router)
-    dp.include_router(handlers_orders.router)
-    dp.include_router(handlers_calculator.router)
-    dp.include_router(handlers_referrals.router)
 
     async def api_middleware(
         handler: Callable[[Update, dict], Awaitable[None]],
@@ -55,9 +50,6 @@ async def main() -> None:
     dp.update.middleware(api_middleware)
     # Register maintenance middleware after API is injected
     dp.update.middleware(MaintenanceMiddleware())
-
-    # Start background scheduler
-    asyncio.create_task(start_scheduler(bot, api_client))
 
     try:
         await dp.start_polling(bot, pool=pool)

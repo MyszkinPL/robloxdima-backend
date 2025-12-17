@@ -8,6 +8,7 @@ import os
 class BotConfig:
   backend_base_url: str
   database_url: str
+  webapp_url: str
 
 
 def load_config() -> BotConfig:
@@ -19,8 +20,11 @@ def load_config() -> BotConfig:
   database_url = os.getenv("DATABASE_URL")
   if not database_url:
     raise RuntimeError("DATABASE_URL is not set")
+    
+  webapp_url = os.getenv("WEBAPP_URL", "https://robloxdima.vercel.app") # Default placeholder
 
   return BotConfig(
     backend_base_url=backend_base_url,
     database_url=database_url,
+    webapp_url=webapp_url,
   )

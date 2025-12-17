@@ -4,6 +4,8 @@ import { getUser } from "@/lib/db"
 import { prisma } from "@/lib/prisma"
 import { getSettings } from "@/lib/settings"
 
+export const dynamic = 'force-dynamic' // Запрещаем кэширование на уровне Next.js
+
 export async function GET(req: NextRequest) {
   try {
     const botToken = req.headers.get("x-bot-token")
@@ -11,6 +13,7 @@ export async function GET(req: NextRequest) {
 
     let userId: string | null = null
 
+    // 1. Быстрая проверка авторизации
     if (botToken && telegramId) {
       const settings = await getSettings()
       if (!settings.telegramBotToken || settings.telegramBotToken !== botToken) {
@@ -25,34 +28,37 @@ export async function GET(req: NextRequest) {
       userId = sessionUser.id
     }
 
-    const dbUser = await getUser(userId)
+    // 2. ЗАПУСКАЕМ ВСЕ ЗАПРОСЫ ПАРАЛЛЕЛЬНО (Promise.all)
+    // Это критически важно для скорости
+    const [dbUser, referralsCount, totalOrders, totalSpentResult] = await Promise.all([
+      getUser(userId),
+      
+      prisma.user.count({
+        where: { referrerId: userId }
+      }),
+      
+      prisma.order.count({
+        where: {
+          userId: userId!,
+          status: { not: "cancelled" }
+        }
+      }),
+      
+      prisma.order.aggregate({
+        where: {
+          userId: userId!,
+          status: { not: "cancelled" }
+        },
+        _sum: {
+          price: true
+        }
+      })
+    ])
+
     if (!dbUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    // Get referral count since it's not in dbUser by default
-    const referralsCount = await prisma.user.count({
-        where: { referrerId: userId }
-    })
-
-    // Calculate stats
-    const totalOrders = await prisma.order.count({
-      where: {
-        userId: userId!,
-        status: { not: "cancelled" }
-      }
-    })
-
-    const totalSpentResult = await prisma.order.aggregate({
-      where: {
-        userId: userId!,
-        status: { not: "cancelled" }
-      },
-      _sum: {
-        price: true
-      }
-    })
-    
     const totalSpent = totalSpentResult._sum.price || 0
 
     return NextResponse.json({ 
@@ -68,4 +74,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
   }
 }
-
