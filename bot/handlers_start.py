@@ -21,9 +21,9 @@ async def handle_start(message: Message, command: CommandObject, api: BackendApi
     settings = await api.get_public_settings()
     support_link = settings.get("supportLink")
     if not support_link:
-        support_link = "https://t.me/RBTradee"
+        support_link = "https://t.me/Bidsl"
   except Exception:
-    support_link = "https://t.me/RBTradee"
+    support_link = "https://t.me/Bidsl"
 
   config = load_config()
   

@@ -21,7 +21,7 @@ def load_config() -> BotConfig:
   if not database_url:
     raise RuntimeError("DATABASE_URL is not set")
     
-  webapp_url = os.getenv("WEBAPP_URL", "https://robloxdima.vercel.app") # Default placeholder
+  webapp_url = os.getenv("WEBAPP_URL", "https://rbtrade.org") # Default placeholder
 
   return BotConfig(
     backend_base_url=backend_base_url,
