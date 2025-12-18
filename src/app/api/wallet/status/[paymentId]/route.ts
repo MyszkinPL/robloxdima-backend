@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/session"
-import { getPayment, updatePaymentStatus, addToUserBalance, addToReferralBalance, getUser } from "@/lib/db"
+import { getPayment, getUser } from "@/lib/db"
 import { checkInvoice } from "@/lib/crypto-bot"
 import { getSettings } from "@/lib/settings"
+import { prisma } from "@/lib/prisma"
+import { rateLimit } from "@/lib/ratelimit"
+import { Prisma } from "@prisma/client"
 
 export async function GET(
   req: NextRequest,
   context: { params: Promise<{ paymentId: string }> },
 ) {
   try {
+    if (rateLimit(req, 30, 60000)) {
+      return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 })
+    }
+
     const { paymentId } = await context.params
 
     // Try session auth
@@ -70,17 +77,75 @@ export async function GET(
     const status = (invoice as { status?: string } | undefined)?.status ?? "pending"
 
     if (status === "paid") {
-      await updatePaymentStatus(paymentId, "paid")
-      await addToUserBalance(payment.userId, payment.amount)
-      
-      // Referral Bonus
-      if (user.referrerId) {
-         const settings = await getSettings()
-         const bonus = payment.amount * (settings.referralPercent / 100)
-         if (bonus > 0) {
-           await addToReferralBalance(user.referrerId, bonus)
-         }
-      }
+      const settings = await getSettings()
+
+      await prisma.$transaction(async (tx) => {
+        const dbPayment = await tx.payment.findUnique({
+          where: { id: paymentId },
+          include: { user: true },
+        })
+
+        if (!dbPayment) return
+
+        const existingProviderDataRaw = dbPayment.providerData
+        const existingProviderData =
+          typeof existingProviderDataRaw === "string" ? existingProviderDataRaw : null
+        const providerDataObj =
+          existingProviderData ? (JSON.parse(existingProviderData) as Record<string, unknown>) : {}
+
+        const updateResult = await tx.payment.updateMany({
+          where: { id: paymentId, status: { not: "paid" } },
+          data: {
+            status: "paid",
+            providerData: JSON.stringify({
+              ...providerDataObj,
+              paidVia: "cryptobot",
+              paidAt: new Date().toISOString(),
+            }),
+          },
+        })
+
+        if (updateResult.count === 0) return
+
+        await tx.user.update({
+          where: { id: dbPayment.userId },
+          data: { balance: { increment: dbPayment.amount } },
+        })
+
+        await tx.log.create({
+          data: {
+            userId: dbPayment.userId,
+            action: "PURCHASE",
+            details: `Пополнение баланса через CryptoBot: ${dbPayment.amount.toFixed(2)} RUB (ID: ${dbPayment.id})`,
+          },
+        })
+
+        const referrerId = dbPayment.user.referrerId
+        if (referrerId) {
+          const bonus = new Prisma.Decimal(dbPayment.amount).mul(
+            new Prisma.Decimal(settings.referralPercent).div(100),
+          )
+          if (bonus.gt(0)) {
+            await tx.user.update({
+              where: { id: referrerId },
+              data: { referralBalance: { increment: bonus } },
+            })
+            await tx.log.create({
+              data: {
+                userId: referrerId,
+                action: "referral_bonus",
+                details: JSON.stringify({
+                  paymentId: dbPayment.id,
+                  fromUserId: dbPayment.userId,
+                  amount: dbPayment.amount.toFixed(2),
+                  bonus: bonus.toFixed(2),
+                  method: "cryptobot",
+                }),
+              },
+            })
+          }
+        }
+      })
 
       return NextResponse.json({
         success: true,
@@ -90,7 +155,10 @@ export async function GET(
     }
 
     if (status === "expired") {
-      await updatePaymentStatus(paymentId, "expired")
+      await prisma.payment.updateMany({
+        where: { id: paymentId, status: { not: "paid" } },
+        data: { status: "expired" },
+      })
       return NextResponse.json({
         success: true,
         status: "expired",

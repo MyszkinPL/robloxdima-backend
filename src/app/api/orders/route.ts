@@ -106,6 +106,24 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const recentDuplicate = await prisma.order.findFirst({
+      where: {
+        userId: userId!,
+        username: robloxUsername,
+        type: "gamepass",
+        amount,
+        placeId: String(placeId),
+        status: { in: ["pending", "processing"] },
+        createdAt: { gte: new Date(Date.now() - 2 * 60 * 1000) },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    })
+
+    if (recentDuplicate) {
+      return NextResponse.json({ success: true, orderId: recentDuplicate.id })
+    }
+
     // Check for active orders
     const activeOrders = await prisma.order.count({
       where: {

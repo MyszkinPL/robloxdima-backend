@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     }
 
     const localOrder = await getOrder(orderId)
-    const targetId = localOrder?.rbxOrderId || orderId
+    const targetId = localOrder?.id || orderId
 
     const client = await getAuthenticatedRbxClient()
     const result = await client.orders.getInfo({ orderId: targetId })

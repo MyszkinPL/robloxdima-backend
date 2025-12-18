@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 })
     }
 
-    const targetId = localOrder.rbxOrderId || localOrder.id
+    const targetId = localOrder.id
 
     const client = await getAuthenticatedRbxClient()
     let result: unknown

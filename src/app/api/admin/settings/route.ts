@@ -94,7 +94,7 @@ export async function PATCH(req: Request) {
     // For now: only update if value is NOT containing "***" and is not undefined.
     // Actually, safer logic: Only update if value is provided and does not look like a mask.
     
-    const shouldUpdate = (val: any) => val !== undefined && val !== null && !String(val).includes("***");
+    const shouldUpdate = (val: unknown) => val !== undefined && val !== null && !String(val).includes("***");
 
     let updated
     if (existing) {

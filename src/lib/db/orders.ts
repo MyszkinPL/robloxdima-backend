@@ -174,17 +174,32 @@ export async function refundOrder(
       };
     }
 
+    const updateResult = await tx.order.updateMany({
+      where: {
+        id: orderId,
+        status: { notIn: ["completed", "failed", "cancelled"] },
+      },
+      data: {
+        status: "failed",
+      },
+    });
+
+    if (updateResult.count === 0) {
+      const current = await tx.order.findUnique({
+        where: { id: orderId },
+        select: { status: true },
+      });
+
+      return {
+        refunded: false,
+        reason: current?.status === "completed" ? ("already_completed" as const) : ("already_failed_or_refunded" as const),
+      };
+    }
+
     await tx.user.update({
       where: { id: order.userId },
       data: {
         balance: { increment: order.price },
-      },
-    });
-
-    await tx.order.update({
-      where: { id: orderId },
-      data: {
-        status: "failed",
       },
     });
 

@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     // 4. Call RbxCrate API
     const client = await getAuthenticatedRbxClient()
     const result = await client.orders.resendGamepass({
-      orderId: order.rbxOrderId || order.id,
+      orderId: order.id,
       placeId: Number(order.placeId),
     })
 

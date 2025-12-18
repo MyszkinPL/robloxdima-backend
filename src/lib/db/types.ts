@@ -40,7 +40,7 @@ export interface Payment {
   userId: string; // Telegram ID
   amount: number;
   currency: string;
-  status: 'pending' | 'paid' | 'expired';
+  status: 'pending' | 'paid' | 'expired' | 'cancelled' | 'refunded' | 'chargeback';
   invoiceUrl?: string;
   createdAt: string;
   method?: string;

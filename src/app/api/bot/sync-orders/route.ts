@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const updates: any[] = []
+    const updates: Array<Record<string, unknown>> = []
 
     // 1. Fetch unnotified completed/failed orders (Webhooks should have handled these)
     // This allows the bot to notify users about orders completed via webhook

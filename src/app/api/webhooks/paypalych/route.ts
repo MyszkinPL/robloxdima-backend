@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getSettings } from "@/lib/settings"
 import { sendTelegramNotification, escapeHtml } from "@/lib/telegram"
 import crypto from "crypto"
+import { Prisma } from "@prisma/client"
 
 export async function POST(req: NextRequest) {
   try {
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
     const expectedAmount = Number(payment.amount); // В базе decimal/float
 
     // Допускаем небольшую погрешность (epsilon) для float сравнений
-    if (Math.abs(paidAmount - expectedAmount) > 1.0) {
+    if (Math.abs(paidAmount - expectedAmount) > 0.01) {
         console.error(`Fraud attempt? Paid: ${paidAmount}, Expected: ${expectedAmount}`);
         return NextResponse.json({ error: "Amount mismatch" }, { status: 400 });
     }
@@ -68,49 +69,75 @@ export async function POST(req: NextRequest) {
     }
 
     if (Status === "SUCCESS") {
+      let didApply = false
+
       await prisma.$transaction(async (tx) => {
-        await tx.payment.update({
+        const dbPayment = await tx.payment.findUnique({
           where: { id: payment.id },
-          data: {
-            status: "paid",
-            providerData: JSON.stringify(body)
-          }
+          include: { user: true },
         })
 
-        await tx.user.update({
-          where: { id: payment.userId },
+        if (!dbPayment) return
+
+        const updateResult = await tx.payment.updateMany({
+          where: { id: dbPayment.id, status: { not: "paid" } },
           data: {
-            balance: { increment: payment.amount }
-          }
+            status: "paid",
+            providerData: JSON.stringify(body),
+          },
+        })
+
+        if (updateResult.count === 0) return
+
+        didApply = true
+
+        await tx.user.update({
+          where: { id: dbPayment.userId },
+          data: {
+            balance: { increment: dbPayment.amount },
+          },
         })
 
         await tx.log.create({
           data: {
-            userId: payment.userId,
+            userId: dbPayment.userId,
             action: "PURCHASE",
-            details: `Пополнение баланса через Paypalych: ${payment.amount} RUB (ID: ${payment.id})`
-          }
+            details: `Пополнение баланса через Paypalych: ${new Prisma.Decimal(dbPayment.amount).toFixed(2)} RUB (ID: ${dbPayment.id})`,
+          },
         })
 
-        // Referral logic
-        if (payment.user.referrerId) {
-            const referrer = await tx.user.findUnique({
-                where: { id: payment.user.referrerId }
+        const referrerId = dbPayment.user.referrerId
+        if (referrerId) {
+          const bonus = new Prisma.Decimal(dbPayment.amount).mul(
+            new Prisma.Decimal(settings.referralPercent).div(100),
+          )
+          if (bonus.gt(0)) {
+            await tx.user.update({
+              where: { id: referrerId },
+              data: { referralBalance: { increment: bonus } },
             })
-            if (referrer) {
-                const bonus = payment.amount.mul(settings.referralPercent / 100)
-                await tx.user.update({
-                    where: { id: referrer.id },
-                    data: { referralBalance: { increment: bonus } }
-                })
-                // Отправка уведомления рефереру (выносим из транзакции или используем внутри, если функция не асинхронная долгая)
-            }
+            await tx.log.create({
+              data: {
+                userId: referrerId,
+                action: "referral_bonus",
+                details: JSON.stringify({
+                  paymentId: dbPayment.id,
+                  fromUserId: dbPayment.userId,
+                  amount: new Prisma.Decimal(dbPayment.amount).toFixed(2),
+                  bonus: bonus.toFixed(2),
+                  method: "paypalych",
+                }),
+              },
+            })
+          }
         }
       })
 
       // Уведомление пользователю
-      const text = `💎 <b>Баланс пополнен!</b>\n\n💰 <b>Сумма:</b> <code>${escapeHtml(payment.amount.toFixed(2))} ₽</code>\n💳 <b>Способ:</b> Paypalych\n\n✨ Теперь вы можете оплатить покупки!`
-      await sendTelegramNotification(payment.userId, text)
+      if (didApply) {
+        const text = `💎 <b>Баланс пополнен!</b>\n\n💰 <b>Сумма:</b> <code>${escapeHtml(payment.amount.toFixed(2))} ₽</code>\n💳 <b>Способ:</b> Paypalych\n\n✨ Теперь вы можете оплатить покупки!`
+        await sendTelegramNotification(payment.userId, text)
+      }
 
     } else if (Status === "FAIL") {
        await prisma.payment.update({

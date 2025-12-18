@@ -42,6 +42,10 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    if (order.status === "cancelled") {
+      return NextResponse.json({ success: true })
+    }
+
     if (order.status !== "pending" && order.status !== "processing") {
       return NextResponse.json({ error: "Можно отменить только заказы в ожидании или в обработке" }, { status: 400 })
     }
@@ -51,7 +55,7 @@ export async function POST(
        try {
          const client = await getAuthenticatedRbxClient()
          // Note: RbxCrate might throw if order cannot be cancelled
-         await client.orders.cancel({ orderId: order.rbxOrderId || order.id })
+         await client.orders.cancel({ orderId: order.id })
        } catch (error) {
          // If it's 404, we can assume it's safe to cancel locally
          // If it's other error (e.g. "Already completed"), we should not cancel
@@ -72,10 +76,16 @@ export async function POST(
     // 2. Refund balance to user
     
     await prisma.$transaction(async (tx) => {
-        await tx.order.update({
-            where: { id: orderId },
-            data: { status: "cancelled" }
+        const updateResult = await tx.order.updateMany({
+          where: {
+            id: orderId,
+            userId: userId!,
+            status: { in: ["pending", "processing"] },
+          },
+          data: { status: "cancelled" },
         })
+
+        if (updateResult.count === 0) return
 
         await tx.user.update({
             where: { id: userId! },

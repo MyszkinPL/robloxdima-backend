@@ -1,4 +1,3 @@
-import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { Payment, mapPayment } from './types';
 

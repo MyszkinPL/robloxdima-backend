@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma"
 import { getAuthenticatedRbxClient } from "@/lib/api-client"
 import { getCachedStock } from "@/lib/stock-cache"
 import { rateLimit } from "@/lib/ratelimit"
+import { Prisma } from "@prisma/client"
 
 export async function POST(req: NextRequest) {
   try {
@@ -85,8 +86,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Некорректная сумма" }, { status: 400 })
     }
 
-    const rawPrice = amount * settings.rate
-    const price = Math.ceil(rawPrice * 100) / 100
+    const recentDuplicate = await prisma.order.findFirst({
+      where: {
+        userId: userId!,
+        username: robloxUsername,
+        type: "vip",
+        amount,
+        placeId: String(placeId),
+        status: { in: ["pending", "processing"] },
+        createdAt: { gte: new Date(Date.now() - 2 * 60 * 1000) },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    })
+
+    if (recentDuplicate) {
+      return NextResponse.json({ success: true, orderId: recentDuplicate.id })
+    }
+
+    const price = new Prisma.Decimal(amount)
+      .mul(settings.rate)
+      .toDecimalPlaces(2, Prisma.Decimal.ROUND_CEIL)
+      .toNumber()
 
     const currentStock = await getCachedStock()
     if (currentStock < amount) {
