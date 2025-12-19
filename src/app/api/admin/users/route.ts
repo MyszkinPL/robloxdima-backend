@@ -36,8 +36,10 @@ export async function GET(req: NextRequest) {
     const role = searchParams.get("role") || undefined
     const status = searchParams.get("status") || undefined
     const ordersFilter = searchParams.get("orders") as 'with' | 'without' | 'all' | undefined
+    const sortBy = searchParams.get("sort_by") || undefined
+    const sortOrder = (searchParams.get("sort_order") as 'asc' | 'desc') || undefined
 
-    const { users, total } = await getUsers({ page, limit, search, role, status, ordersFilter })
+    const { users, total } = await getUsers({ page, limit, search, role, status, ordersFilter, sortBy, sortOrder })
 
     const userIds = users.map(u => u.id)
     

@@ -12,10 +12,12 @@ export interface GetOrdersOptions {
   userId?: string;
   status?: string;
   refunded?: boolean;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }
 
 export async function getOrders(options: GetOrdersOptions = {}): Promise<{ orders: Order[]; total: number }> {
-  const { page = 1, limit = 50, search, userId, status, refunded } = options;
+  const { page = 1, limit = 50, search, userId, status, refunded, sortBy = 'createdAt', sortOrder = 'desc' } = options;
   const skip = (page - 1) * limit;
   const where: Prisma.OrderWhereInput = {};
 
@@ -42,10 +44,15 @@ export async function getOrders(options: GetOrdersOptions = {}): Promise<{ order
       }
   }
 
+  const orderBy: Prisma.OrderOrderByWithRelationInput = {};
+  if (sortBy) {
+    orderBy[sortBy as keyof Prisma.OrderOrderByWithRelationInput] = sortOrder;
+  }
+
   const [orders, total] = await Promise.all([
     prisma.order.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy,
       skip,
       take: limit
     }),

@@ -36,9 +36,11 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status") || undefined
     const refundedParam = searchParams.get("refunded")
     const refunded = refundedParam === "yes" ? true : refundedParam === "no" ? false : undefined
+    const sortBy = searchParams.get("sort_by") || undefined
+    const sortOrder = (searchParams.get("sort_order") as 'asc' | 'desc') || undefined
 
     const [ordersResult, stats] = await Promise.all([
-      getOrders({ page, limit, search, userId, status, refunded }),
+      getOrders({ page, limit, search, userId, status, refunded, sortBy, sortOrder }),
       getDashboardStats()
     ])
 

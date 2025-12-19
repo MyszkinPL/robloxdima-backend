@@ -7,11 +7,13 @@ export interface GetPaymentsOptions {
   userId?: string;
   method?: string | string[];
   status?: string | string[];
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }
 
 // Payments
 export async function getPayments(options: GetPaymentsOptions = {}): Promise<{ payments: Payment[]; total: number }> {
-  const { page = 1, limit = 50, userId, method, status } = options;
+  const { page = 1, limit = 50, userId, method, status, sortBy = 'createdAt', sortOrder = 'desc' } = options;
   const skip = (page - 1) * limit;
 
   const where: any = {};
@@ -29,10 +31,15 @@ export async function getPayments(options: GetPaymentsOptions = {}): Promise<{ p
     else where.status = { in: statuses };
   }
 
+  const orderBy: any = {};
+  if (sortBy) {
+    orderBy[sortBy] = sortOrder;
+  }
+
   const [payments, total] = await Promise.all([
     prisma.payment.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy,
       skip,
       take: limit
     }),

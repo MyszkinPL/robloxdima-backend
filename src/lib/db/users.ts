@@ -10,10 +10,12 @@ export interface GetUsersOptions {
   role?: string;
   status?: string;
   ordersFilter?: 'with' | 'without' | 'all';
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }
 
 export async function getUsers(options: GetUsersOptions = {}): Promise<{ users: User[]; total: number }> {
-  const { page = 1, limit = 50, search, role, status, ordersFilter } = options;
+  const { page = 1, limit = 50, search, role, status, ordersFilter, sortBy = 'createdAt', sortOrder = 'desc' } = options;
   const skip = (page - 1) * limit;
   const where: Prisma.UserWhereInput = {};
 
@@ -37,10 +39,15 @@ export async function getUsers(options: GetUsersOptions = {}): Promise<{ users: 
       ];
   }
 
+  const orderBy: Prisma.UserOrderByWithRelationInput = {};
+  if (sortBy) {
+    orderBy[sortBy as keyof Prisma.UserOrderByWithRelationInput] = sortOrder;
+  }
+
   const [users, total] = await Promise.all([
     prisma.user.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy,
       skip,
       take: limit
     }),

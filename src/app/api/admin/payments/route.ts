@@ -34,8 +34,10 @@ export async function GET(req: NextRequest) {
     const userId = searchParams.get("userId") || undefined
     const method = searchParams.get("method") || undefined
     const status = searchParams.get("status") || undefined
+    const sortBy = searchParams.get("sort_by") || undefined
+    const sortOrder = (searchParams.get("sort_order") as "asc" | "desc") || undefined
 
-    const { payments, total } = await getPayments({ page, limit, userId, method, status })
+    const { payments, total } = await getPayments({ page, limit, userId, method, status, sortBy, sortOrder })
 
     return NextResponse.json({ payments, total })
   } catch {
