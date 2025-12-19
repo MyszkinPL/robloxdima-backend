@@ -257,9 +257,10 @@ export async function POST(req: NextRequest) {
         console.warn(`Potential network error for order ${orderId}. Skipping immediate refund to avoid race condition.`)
         return NextResponse.json(
           { 
-            success: true, 
+            success: false, 
             orderId, 
-            warning: "Заказ создан, но ответ от поставщика задерживается. Статус обновится автоматически в течение 15 минут." 
+            error: "Заказ создан, но ответ от поставщика задерживается. Статус обновится автоматически в течение 15 минут. Пожалуйста, не создавайте новый заказ!",
+            isNetworkError: true
           }, 
           { status: 202 }
         )
