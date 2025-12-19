@@ -39,7 +39,7 @@ export function proxy(request: NextRequest) {
     )
     response.headers.set(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, x-bot-token, x-telegram-id, Cache-Control",
+      "Content-Type, Authorization, x-bot-token, x-telegram-id, Cache-Control, Pragma, Expires",
     )
     response.headers.set("Access-Control-Max-Age", "86400")
     return response
@@ -50,7 +50,7 @@ export function proxy(request: NextRequest) {
 
   if (request.nextUrl.pathname.startsWith("/admin")) {
     if (!session) {
-      return NextResponse.redirect(new URL("/login", request.url))
+      return NextResponse.redirect(new URL("/", request.url))
     }
   }
 
