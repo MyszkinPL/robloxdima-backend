@@ -24,8 +24,12 @@ export async function GET(req: NextRequest) {
       userId = sessionUser.id
     }
 
-    const payments = await getUserPayments(userId)
-    return NextResponse.json({ success: true, payments })
+    const { searchParams } = new URL(req.url)
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "10")
+
+    const { payments, total } = await getUserPayments(userId, page, limit)
+    return NextResponse.json({ success: true, payments, total })
   } catch (error) {
     console.error("GET /api/wallet/history error:", error)
     return NextResponse.json(

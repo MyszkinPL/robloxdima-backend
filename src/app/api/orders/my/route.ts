@@ -24,8 +24,15 @@ export async function GET(req: NextRequest) {
       userId = user.id
     }
 
-    const ordersResult = await getUserOrders(userId)
-    return NextResponse.json({ orders: ordersResult.orders })
+    const { searchParams } = new URL(req.url)
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "50")
+
+    const ordersResult = await getUserOrders(userId, page, limit)
+    return NextResponse.json({ 
+      orders: ordersResult.orders,
+      total: ordersResult.total
+    })
   } catch (error) {
     console.error("GET /api/orders/my error:", error)
     return NextResponse.json(

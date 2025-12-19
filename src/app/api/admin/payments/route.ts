@@ -28,9 +28,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const payments = await getPayments()
+    const { searchParams } = new URL(req.url)
+    const page = parseInt(searchParams.get("page") || "1")
+    const limit = parseInt(searchParams.get("limit") || "50")
+    const userId = searchParams.get("userId") || undefined
+    const method = searchParams.get("method") || undefined
+    const status = searchParams.get("status") || undefined
 
-    return NextResponse.json({ payments })
+    const { payments, total } = await getPayments({ page, limit, userId, method, status })
+
+    return NextResponse.json({ payments, total })
   } catch {
     return NextResponse.json(
       { error: "Failed to fetch payments" },

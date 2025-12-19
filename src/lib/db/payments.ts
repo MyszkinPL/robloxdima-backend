@@ -1,20 +1,59 @@
 import { prisma } from '@/lib/prisma';
 import { Payment, mapPayment } from './types';
 
-// Payments
-export async function getPayments(): Promise<Payment[]> {
-  const payments = await prisma.payment.findMany({
-    orderBy: { createdAt: 'desc' }
-  });
-  return payments.map(mapPayment);
+export interface GetPaymentsOptions {
+  page?: number;
+  limit?: number;
+  userId?: string;
+  method?: string | string[];
+  status?: string | string[];
 }
 
-export async function getUserPayments(userId: string): Promise<Payment[]> {
-  const payments = await prisma.payment.findMany({
-    where: { userId },
-    orderBy: { createdAt: 'desc' }
-  });
-  return payments.map(mapPayment);
+// Payments
+export async function getPayments(options: GetPaymentsOptions = {}): Promise<{ payments: Payment[]; total: number }> {
+  const { page = 1, limit = 50, userId, method, status } = options;
+  const skip = (page - 1) * limit;
+
+  const where: any = {};
+  if (userId) where.userId = { contains: userId, mode: 'insensitive' };
+  
+  if (method) {
+    const methods = Array.isArray(method) ? method : method.split(',');
+    if (methods.length === 1) where.method = methods[0];
+    else where.method = { in: methods };
+  }
+
+  if (status) {
+    const statuses = Array.isArray(status) ? status : status.split(',');
+    if (statuses.length === 1) where.status = statuses[0];
+    else where.status = { in: statuses };
+  }
+
+  const [payments, total] = await Promise.all([
+    prisma.payment.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit
+    }),
+    prisma.payment.count({ where })
+  ]);
+
+  return { payments: payments.map(mapPayment), total };
+}
+
+export async function getUserPayments(userId: string, page: number = 1, limit: number = 50): Promise<{ payments: Payment[], total: number }> {
+  const skip = (page - 1) * limit;
+  const [payments, total] = await Promise.all([
+    prisma.payment.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limit
+    }),
+    prisma.payment.count({ where: { userId } })
+  ]);
+  return { payments: payments.map(mapPayment), total };
 }
 
 export async function createPayment(payment: Payment): Promise<void> {
