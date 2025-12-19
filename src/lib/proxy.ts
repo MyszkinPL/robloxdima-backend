@@ -39,7 +39,7 @@ export function proxy(request: NextRequest) {
     )
     response.headers.set(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, x-bot-token, x-telegram-id",
+      "Content-Type, Authorization, x-bot-token, x-telegram-id, Cache-Control",
     )
     response.headers.set("Access-Control-Max-Age", "86400")
     return response
