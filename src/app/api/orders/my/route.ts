@@ -29,9 +29,14 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "50")
 
     const ordersResult = await getUserOrders(userId, page, limit)
+    const totalPages = Math.max(1, Math.ceil(ordersResult.total / limit))
+
     return NextResponse.json({ 
       orders: ordersResult.orders,
-      total: ordersResult.total
+      total: ordersResult.total,
+      totalPages,
+      page,
+      limit
     })
   } catch (error) {
     console.error("GET /api/orders/my error:", error)

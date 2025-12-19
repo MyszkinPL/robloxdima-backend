@@ -46,7 +46,7 @@ class BanMiddleware(BaseMiddleware):
                 # Cache miss, check DB
                 async with pool.acquire() as conn:
                     is_banned = await conn.fetchval(
-                        'SELECT "isBanned" FROM "User" WHERE id = $1', # Ensure correct table name ("User" in Prisma usually)
+                        'SELECT "isBanned" FROM "users" WHERE id = $1', # Ensure correct table name ("User" in Prisma usually)
                         str(user_id)
                     )
                 # Cache the result (False if None/False, True if True)

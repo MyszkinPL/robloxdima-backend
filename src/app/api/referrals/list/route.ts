@@ -26,39 +26,38 @@ export async function GET(req: NextRequest) {
 
     // Pagination
     const { searchParams } = new URL(req.url)
+    const page = parseInt(searchParams.get("page") || "1")
     const limit = parseInt(searchParams.get("limit") || "50")
-    const offset = parseInt(searchParams.get("offset") || "0")
+    const offset = (page - 1) * limit
 
-    const referrals = await prisma.user.findMany({
-      where: {
-        referrerId: userId
-      },
-      select: {
-        id: true,
-        username: true,
-        firstName: true,
-        createdAt: true,
-        photoUrl: true,
-      },
-      orderBy: {
-        createdAt: "desc"
-      },
-      take: limit,
-      skip: offset
-    })
+    const [referrals, total] = await Promise.all([
+      prisma.user.findMany({
+        where: {
+          referrerId: userId
+        },
+        select: {
+          id: true,
+          username: true,
+          firstName: true,
+          createdAt: true,
+          photoUrl: true,
+        },
+        orderBy: {
+          createdAt: "desc"
+        },
+        take: limit,
+        skip: offset
+      }),
+      prisma.user.count({
+        where: {
+          referrerId: userId
+        }
+      })
+    ])
 
-    // Calculate total earnings from each referral (approximate or accurate?)
-    // Accurate calculation requires summing payments from this user * referralPercent at that time.
-    // But we don't store historical referralPercent per payment.
-    // So we can only show "Total Spent" by the referral, and maybe "Estimated Earnings".
+    const totalPages = Math.max(1, Math.ceil(total / limit))
     
-    // Let's just return the users for now. The user asked for "full referral system", usually implies seeing who you invited.
-
-    // Enrich with total spent if needed, but it might be N+1 query problem.
-    // Use aggregation if possible or just skip for performance if list is long.
-    // For now let's just return the list.
-    
-    return NextResponse.json({ referrals })
+    return NextResponse.json({ referrals, total, totalPages, page, limit })
 
   } catch (error) {
     console.error("GET /api/referrals/list error:", error)

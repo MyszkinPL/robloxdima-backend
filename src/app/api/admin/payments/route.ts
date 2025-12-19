@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     const { payments, total } = await getPayments({ page, limit, userId, method, status, sortBy, sortOrder })
     const totalPages = Math.max(1, Math.ceil(total / limit))
 
-    return NextResponse.json({ payments, total, totalPages })
+    return NextResponse.json({ payments, total, totalPages, page, limit })
   } catch {
     return NextResponse.json(
       { error: "Failed to fetch payments" },

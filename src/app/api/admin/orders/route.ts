@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/session"
-import { getOrders, getUser, getDashboardStats } from "@/lib/db"
+import { getOrders, getUser, getDashboardStats, prisma } from "@/lib/db"
 import { getSettings } from "@/lib/settings"
 
 export async function GET(req: NextRequest) {
@@ -46,10 +46,49 @@ export async function GET(req: NextRequest) {
 
     const totalPages = Math.max(1, Math.ceil(ordersResult.total / limit))
 
+    // Enrich with refund info
+    const orderIds = ordersResult.orders.map(o => o.id)
+    let refundsMap: Record<string, any> = {}
+
+    if (orderIds.length > 0) {
+      const refundLogs = await prisma.log.findMany({
+        where: {
+          action: "order_refund",
+          OR: orderIds.map(id => ({
+            details: { contains: id }
+          }))
+        }
+      })
+
+      refundLogs.forEach(log => {
+        try {
+          if (!log.details) return
+          const parsed = JSON.parse(log.details)
+          if (parsed.orderId && orderIds.includes(parsed.orderId)) {
+             if (!refundsMap[parsed.orderId] || new Date(refundsMap[parsed.orderId].createdAt) < log.createdAt) {
+                refundsMap[parsed.orderId] = {
+                    refunded: true,
+                    source: parsed.source,
+                    initiatorUserId: parsed.initiatorUserId,
+                    createdAt: log.createdAt
+                }
+             }
+          }
+        } catch {}
+      })
+    }
+
+    const ordersWithRefunds = ordersResult.orders.map(order => ({
+        ...order,
+        refundInfo: refundsMap[order.id] || null
+    }))
+
     return NextResponse.json({
-      orders: ordersResult.orders,
+      orders: ordersWithRefunds,
       total: ordersResult.total,
       totalPages,
+      page,
+      limit,
       summary: stats,
     })
   } catch (error) {

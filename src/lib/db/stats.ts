@@ -8,7 +8,7 @@ export async function getDashboardStats() {
   const startOfYear = new Date(now.getFullYear(), 0, 1);
 
   const [totalOrders, totalUsers, totalVolume, recentOrders, salesThisMonth, monthlyRevenueRaw] = await Promise.all([
-    prisma.order.count(),
+    prisma.order.count({ where: { status: 'completed' } }),
     prisma.user.count(),
     prisma.order.aggregate({
       _sum: {
@@ -31,26 +31,26 @@ export async function getDashboardStats() {
     // ИСПРАВЛЕНИЕ: Заменили Raw Query на безопасную агрегацию в коде, чтобы избежать SQL Injection и проблем с именами таблиц.
     // При большом объеме данных (>50k заказов) это может быть медленнее, но безопасно.
     // Для оптимизации в будущем можно использовать Materialized Views или group by в SQL с точными именами.
-    prisma.order.findMany({
-        where: {
-            status: 'completed',
-            createdAt: { gte: startOfYear }
-        },
-        select: {
-            price: true,
-            createdAt: true
-        }
-    })
+    prisma.$queryRaw`
+      SELECT 
+        EXTRACT(MONTH FROM "createdAt") as month, 
+        SUM("price") as total
+      FROM "orders"
+      WHERE "status" = 'completed' AND "createdAt" >= ${startOfYear}
+      GROUP BY EXTRACT(MONTH FROM "createdAt")
+    ` as Promise<{ month: number, total: number }[]>
   ]);
 
   // Process monthly revenue
   const monthlyRevenue = new Array(12).fill(0);
   
-  // Aggregation in memory (Safe from SQL Injection)
   if (Array.isArray(monthlyRevenueRaw)) {
-      for (const order of monthlyRevenueRaw) {
-          const month = order.createdAt.getMonth(); // 0-11
-          monthlyRevenue[month] += Number(order.price);
+      for (const row of monthlyRevenueRaw) {
+          // PostgreSQL EXTRACT(MONTH) returns 1-12
+          const monthIndex = Number(row.month) - 1;
+          if (monthIndex >= 0 && monthIndex < 12) {
+              monthlyRevenue[monthIndex] = Number(row.total || 0);
+          }
       }
   }
 
@@ -96,7 +96,7 @@ export async function getDetailedStats(): Promise<DetailedStatsData> {
       _sum: { price: true, cost: true },
       where: { status: 'completed' }
     }),
-    prisma.order.count(),
+    prisma.order.count({ where: { status: 'completed' } }),
     prisma.user.count(),
     prisma.user.count({ where: { isBanned: true } }),
     prisma.order.groupBy({

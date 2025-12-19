@@ -22,7 +22,8 @@ export async function GET(
     const limit = parseInt(searchParams.get("limit") || "50")
 
     const { logs, total } = await getUserLogs(userId, page, limit)
-    return NextResponse.json({ logs, total })
+    const totalPages = Math.max(1, Math.ceil(total / limit))
+    return NextResponse.json({ logs, total, totalPages, page, limit })
   } catch (error) {
     console.error("GET /api/admin/users/[userId]/logs error:", error)
     return NextResponse.json(

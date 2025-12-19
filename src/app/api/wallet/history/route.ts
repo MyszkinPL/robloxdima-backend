@@ -29,7 +29,8 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "10")
 
     const { payments, total } = await getUserPayments(userId, page, limit)
-    return NextResponse.json({ success: true, payments, total })
+    const totalPages = Math.max(1, Math.ceil(total / limit))
+    return NextResponse.json({ success: true, payments, total, totalPages, page, limit })
   } catch (error) {
     console.error("GET /api/wallet/history error:", error)
     return NextResponse.json(

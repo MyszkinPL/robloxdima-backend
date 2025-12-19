@@ -48,7 +48,8 @@ export async function GET(req: NextRequest) {
     const stats = await prisma.order.groupBy({
       by: ["userId"],
       where: {
-          userId: { in: userIds }
+          userId: { in: userIds },
+          status: 'completed'
       },
       _sum: {
         price: true,
@@ -78,7 +79,13 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    return NextResponse.json({ users: usersWithStats, total, totalPages })
+    return NextResponse.json({ 
+      users: usersWithStats, 
+      total, 
+      totalPages,
+      page,
+      limit
+    })
   } catch (error) {
     console.error("GET /api/admin/users error:", error)
     return NextResponse.json(

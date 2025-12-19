@@ -78,7 +78,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Заполните все поля" }, { status: 400 })
     }
 
-    if (body.type === "vip") {
+    const type = body.type === "vip" ? "vip" : "gamepass"
+
+    if (type === "vip") {
       if (robloxUsername.length < 3 || robloxUsername.length > 50) {
         return NextResponse.json(
           { error: "Никнейм должен быть от 3 до 50 символов" },
@@ -110,7 +112,7 @@ export async function POST(req: NextRequest) {
       where: {
         userId: userId!,
         username: robloxUsername,
-        type: "gamepass",
+        type: type,
         amount,
         placeId: String(placeId),
         status: { in: ["pending", "processing"] },
@@ -192,7 +194,7 @@ export async function POST(req: NextRequest) {
         id: orderId,
         userId,
         username: robloxUsername,
-        type: "gamepass",
+        type: type,
         amount,
         price,
         cost,
@@ -204,13 +206,25 @@ export async function POST(req: NextRequest) {
       await addOrder(newOrder)
 
       const client = await getAuthenticatedRbxClient()
-      const rbxResponse = await client.orders.createGamepass({
-        orderId,
-        robloxUsername,
-        robuxAmount: amount,
-        placeId,
-        isPreOrder: true,
-      })
+      let rbxResponse
+
+      if (type === "vip") {
+        rbxResponse = await client.orders.createVipServer({
+          orderId,
+          robloxUsername,
+          robuxAmount: amount,
+          placeId,
+          isPreOrder: true,
+        })
+      } else {
+        rbxResponse = await client.orders.createGamepass({
+          orderId,
+          robloxUsername,
+          robuxAmount: amount,
+          placeId,
+          isPreOrder: true,
+        })
+      }
 
       if (rbxResponse.success && rbxResponse.data?.orderId) {
         await updateOrder(orderId, { rbxOrderId: rbxResponse.data.orderId })
@@ -241,15 +255,25 @@ export async function POST(req: NextRequest) {
 
       if (isNetworkError) {
         console.warn(`Potential network error for order ${orderId}. Skipping immediate refund to avoid race condition.`)
-        // Return success to frontend so they don't retry immediately? 
-        // Or return error but saying "Order is processing, please wait"?
-        return NextResponse.json({ success: true, orderId, message: "Заказ создан, но ответ от поставщика задерживается. Статус обновится автоматически." })
+        return NextResponse.json(
+          { 
+            success: true, 
+            orderId, 
+            warning: "Заказ создан, но ответ от поставщика задерживается. Статус обновится автоматически в течение 15 минут." 
+          }, 
+          { status: 202 }
+        )
       }
 
-      const errorMessage =
+      let errorMessage =
         innerError instanceof Error
           ? innerError.message
           : "Ошибка при создании заказа"
+
+      // Friendly error for Regional Pricing
+      if (errorMessage.includes("RegionalPricing")) {
+        errorMessage = "Ошибка: Отключите 'Regional Pricing' (Использовать региональные цены) в настройках вашего Gamepass/Server."
+      }
 
       await refundOrder(orderId, {
         source: "order_create",
