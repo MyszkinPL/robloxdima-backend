@@ -38,8 +38,9 @@ export async function GET(req: NextRequest) {
     const sortOrder = (searchParams.get("sort_order") as "asc" | "desc") || undefined
 
     const { payments, total } = await getPayments({ page, limit, userId, method, status, sortBy, sortOrder })
+    const totalPages = Math.max(1, Math.ceil(total / limit))
 
-    return NextResponse.json({ payments, total })
+    return NextResponse.json({ payments, total, totalPages })
   } catch {
     return NextResponse.json(
       { error: "Failed to fetch payments" },

@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
     const sortOrder = (searchParams.get("sort_order") as 'asc' | 'desc') || undefined
 
     const { users, total } = await getUsers({ page, limit, search, role, status, ordersFilter, sortBy, sortOrder })
+    const totalPages = Math.max(1, Math.ceil(total / limit))
 
     const userIds = users.map(u => u.id)
     
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest) {
       }
     })
 
-    return NextResponse.json({ users: usersWithStats, total })
+    return NextResponse.json({ users: usersWithStats, total, totalPages })
   } catch (error) {
     console.error("GET /api/admin/users error:", error)
     return NextResponse.json(

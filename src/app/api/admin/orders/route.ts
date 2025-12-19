@@ -44,9 +44,12 @@ export async function GET(req: NextRequest) {
       getDashboardStats()
     ])
 
+    const totalPages = Math.max(1, Math.ceil(ordersResult.total / limit))
+
     return NextResponse.json({
       orders: ordersResult.orders,
       total: ordersResult.total,
+      totalPages,
       summary: stats,
     })
   } catch (error) {
